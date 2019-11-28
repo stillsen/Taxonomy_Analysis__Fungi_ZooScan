@@ -56,7 +56,7 @@ def prepare_fun_df(df, higher_taxonomic_groups = ['kingdom', 'phylum', 'class', 
 
 def prepare_zoo_df(csv_path, na_values):
     df = pd.read_csv(csv_path, na_values=na_values)
-    file = '/home/stillsen/Documents/Uni/MasterArbeit/TaxonomicImageClassifier/zoo_df.csv'
+    file = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/zoo_df.csv'
     if not path.exists(file):
         # load ncbi database
         ncbi = load_ncbi()
