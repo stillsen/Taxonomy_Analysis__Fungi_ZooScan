@@ -1,3 +1,9 @@
+# Analysis script: gives...
+# taxonomic class distribution
+# taxonomic distribution with highlighted  class
+# taxonomic distribution within a class
+# for fungi ds and zooscan sd
+
 import os
 import pandas as pd
 import numpy as np
