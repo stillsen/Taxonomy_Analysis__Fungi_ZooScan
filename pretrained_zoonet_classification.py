@@ -100,10 +100,10 @@ def parse_opts():
 opts = parse_opts()
 
 path = opts.data
-# path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi/"
+# path = "/home/stillsen/Documents/Data/ZooNet/ZooScanSet/imgs"
+
 ## PARAMETERS
-pretrained = True
-# pretrained = False
+
 
 epochs = 10
 lr = 0.001
@@ -127,90 +127,90 @@ jitter_param = 0.4
 lighting_param = 0.1
 # Metric
 metric = mx.metric.Accuracy()
-if pretrained:
-    missing_values = ['', 'unknown', 'unclassified']
-    csv_path = os.path.join(path, 'im_merged.csv')
-    df = pd.read_csv(csv_path, na_values=missing_values)
 
-    print('NaNs in the label data set')
-    print(df.isnull().sum())
+missing_values = ['', 'unknown', 'unclassified']
+csv_path = os.path.join(path, 'im_merged.csv')
+df = pd.read_csv(csv_path, na_values=missing_values)
 
-    taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-    # taxonomic_groups = ['phylum']
-    fig, ax = plt.subplots(2, 3, sharey='row')
-    sns.set_context("paper")
-    for (i, taxa) in enumerate(taxonomic_groups):
-        DataPrep(taxa=taxa, path=path)
-        data_handler = DataHandler(path=path,
-                                   batch_size = batch_size,
-                                   num_workers=num_workers,
-                                   transform = True)
-        classes = data_handler.classes
+print('NaNs in the label data set')
+print(df.isnull().sum())
 
-        # plot class distribution
-        # x = []
-        # y = []
-        # for item in enumerate(data_handler.samples_per_class):
-        #     x = item[0]
-        #     y = item[1]
-        x = list(data_handler.samples_per_class.keys())
-        y = list(data_handler.samples_per_class.values())
-        # x, y = zip(data_handler.samples_per_class.items())
-        if i < 3:
-            # ax[0][i].plot(x,y)
-            ax[0][i].xaxis.set_visible(False)
-            sns.barplot(x=x, y=y, color="b", ax=ax[0][i])
-            # ax[0][i].hist(y)
-            ax[0][i].set_title(taxa)
-        else:
-            ax[1][i - 3].xaxis.set_visible(False)
-            sns.barplot(x=x,y=y, color="b", ax=ax[1][i - 3])
-            # ax[1][i - 3].hist(y)
-            ax[1][i - 3].set_title(taxa)
-            # ax[1][i-3].plot(x, y)
-        print(taxa)
-        for cl in data_handler.samples_per_class:
-            print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
-            print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
-        ## Model Densenet 169
-        model_name = 'densenet169'
-        finetune_net = get_model(model_name, pretrained=True)
-        with finetune_net.name_scope():
-            finetune_net.output = nn.Dense(classes)
-        finetune_net.output.initialize(init.Xavier(), ctx = ctx)
-        finetune_net.collect_params().reset_ctx(ctx)
-        finetune_net.hybridize()
+taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+# taxonomic_groups = ['phylum']
+fig, ax = plt.subplots(2, 3, sharey='row')
+sns.set_context("paper")
+for (i, taxa) in enumerate(taxonomic_groups):
+    DataPrep(taxa=taxa, path=path)
+    data_handler = DataHandler(path=path,
+                               batch_size = batch_size,
+                               num_workers=num_workers,
+                               transform = True)
+    classes = data_handler.classes
 
-        ### load parameters if already trained, otherwise train
-        model_loaded = False
-        param_file = ''
-        e = -1
-        for file_name in os.listdir(path):
-            if re.match('deep-fungi-%s-'% taxa, file_name):
-                if int(file_name.split('-')[-1][0]) > e:
-                    e = int(file_name.split('-')[-1][0])
-                    param_file = os.path.join(path, file_name)
-                model_loaded = True
-        if not model_loaded: # train
-            print('training model for %s' % taxa)
-            finetune_net= train(finetune_net,
-                                data_handler.train_data,
-                                data_handler.test_data,
-                                epochs=epochs,
-                                ctx=ctx,
-                                metric=metric,
-                                lr=lr,
-                                momentum=momentum,
-                                wd=wd,
-                                batch_size=batch_size,
-                                taxa=taxa,
-                                path=path)
-        else:
-            finetune_net.load_parameters(param_file)
-            print('loading %s' %param_file)
-        val_names, val_accs = evaluate(finetune_net, data_handler.test_data, ctx)
-        print('%s: %s' % (taxa, metric_str(val_names, val_accs)))
+    # plot class distribution
+    # x = []
+    # y = []
+    # for item in enumerate(data_handler.samples_per_class):
+    #     x = item[0]
+    #     y = item[1]
+    x = list(data_handler.samples_per_class.keys())
+    y = list(data_handler.samples_per_class.values())
+    # x, y = zip(data_handler.samples_per_class.items())
+    if i < 3:
+        # ax[0][i].plot(x,y)
+        ax[0][i].xaxis.set_visible(False)
+        sns.barplot(x=x, y=y, color="b", ax=ax[0][i])
+        # ax[0][i].hist(y)
+        ax[0][i].set_title(taxa)
+    else:
+        ax[1][i - 3].xaxis.set_visible(False)
+        sns.barplot(x=x,y=y, color="b", ax=ax[1][i - 3])
+        # ax[1][i - 3].hist(y)
+        ax[1][i - 3].set_title(taxa)
+        # ax[1][i-3].plot(x, y)
+    print(taxa)
+    for cl in data_handler.samples_per_class:
+        print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
+        print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
+    ## Model Densenet 169
+    model_name = 'densenet169'
+    finetune_net = get_model(model_name, pretrained=True)
+    with finetune_net.name_scope():
+        finetune_net.output = nn.Dense(classes)
+    finetune_net.output.initialize(init.Xavier(), ctx = ctx)
+    finetune_net.collect_params().reset_ctx(ctx)
+    finetune_net.hybridize()
+
+    ### load parameters if already trained, otherwise train
+    model_loaded = False
+    param_file = ''
+    e = -1
+    for file_name in os.listdir(path):
+        if re.match('deep-fungi-%s-'% taxa, file_name):
+            if int(file_name.split('-')[-1][0]) > e:
+                e = int(file_name.split('-')[-1][0])
+                param_file = os.path.join(path, file_name)
+            model_loaded = True
+    if not model_loaded: # train
+        print('training model for %s' % taxa)
+        finetune_net= train(finetune_net,
+                            data_handler.train_data,
+                            data_handler.test_data,
+                            epochs=epochs,
+                            ctx=ctx,
+                            metric=metric,
+                            lr=lr,
+                            momentum=momentum,
+                            wd=wd,
+                            batch_size=batch_size,
+                            taxa=taxa,
+                            path=path)
+    else:
+        finetune_net.load_parameters(param_file)
+        print('loading %s' %param_file)
+    val_names, val_accs = evaluate(finetune_net, data_handler.test_data, ctx)
+    print('%s: %s' % (taxa, metric_str(val_names, val_accs)))
 
 
 
-    plt.show()
+plt.show()
