@@ -99,7 +99,7 @@ def train(net, train_iter, val_iter, epochs, ctx, metric, lr, momentum, wd, batc
 # opts = parse_opts()
 
 # path = opts.data
-path = "/home/stillsen/Documents/Data/ZooNet/ZooScanSet/imgs"
+path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
 
 ## PARAMETERS
 
@@ -127,33 +127,19 @@ lighting_param = 0.1
 # Metric
 metric = mx.metric.Accuracy()
 
-missing_values = ['',
-                      'artefact',
-                      'bubble',
-                      'detritus',
-                      'seaweed',
-                      'head',
-                      'megalopa',
-                      'Rhincalanidae',
-                      'cirrus',
-                      'metanauplii',
-                      'cyphonaute',
-                      'scale',
-                      'Pyrosomatida',
-                      'ephyra']
-
-csv_path = os.path.join(path, 'zoo_df.csv')
+missing_values = ['', 'unknown', 'unclassified']
+csv_path = os.path.join(path, 'im_merged.csv')
 df = pd.read_csv(csv_path, na_values=missing_values)
 
 print('NaNs in the label data set')
 print(df.isnull().sum())
 
-taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 # taxonomic_groups = ['phylum']
 fig, ax = plt.subplots(2, 3, sharey='row')
 sns.set_context("paper")
 for (i, taxa) in enumerate(taxonomic_groups):
-    DataPrep(taxa=taxa, path=path)
+    DataPrep(taxa=taxa, path=path, type = 'fungi')
     data_handler = DataHandler(path=path,
                                batch_size = batch_size,
                                num_workers=num_workers,
