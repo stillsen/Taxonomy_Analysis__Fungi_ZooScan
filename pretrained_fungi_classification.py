@@ -127,6 +127,7 @@ lighting_param = 0.1
 # Metric
 metric = mx.metric.Accuracy()
 
+
 missing_values = ['', 'unknown', 'unclassified']
 csv_path = os.path.join(path, 'im_merged.csv')
 df = pd.read_csv(csv_path, na_values=missing_values)
@@ -139,7 +140,8 @@ taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 fig, ax = plt.subplots(2, 3, sharey='row')
 sns.set_context("paper")
 for (i, taxa) in enumerate(taxonomic_groups):
-    DataPrep(taxa=taxa, path=path, type = 'fungi')
+    print('working in taxonomic group: %s' %taxa)
+    DataPrep(taxa=taxa, path=path, type = 'fungi', df=df)
     data_handler = DataHandler(path=path,
                                batch_size = batch_size,
                                num_workers=num_workers,
@@ -167,7 +169,6 @@ for (i, taxa) in enumerate(taxonomic_groups):
         # ax[1][i - 3].hist(y)
         ax[1][i - 3].set_title(taxa)
         # ax[1][i-3].plot(x, y)
-    print(taxa)
     for cl in data_handler.samples_per_class:
         print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
         print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
