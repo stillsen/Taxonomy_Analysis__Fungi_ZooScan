@@ -8,40 +8,26 @@ from matplotlib import pyplot as plt
 from matplotlib import image as plti
 
 class DataPrep:
-    def __init__(self, path, taxa, type):
+    def __init__(self, path, taxa, type, df):
         if type == 'fungi':
+            # removes path/train, path/test and path/val
+            # builds up mapping from unique identiefier to file
+            # if enabled extracts circles and saves the cuts in self.cut_fun_images()
+            # build imagefolders according to taxonomic rank
+            # copies those folders/files according to sample ratio in path/test, path/train and path/val
             self.clean_up(path)
-            self.cut_fun_images(path, taxa)
+            # self.cut_fun_images(path, taxa)
+            ids_dict = self.create_ids_dict(path=path)
+            self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, ids_dict=ids_dict)
             self.sample(path)
         if type == 'zooscan':
             pass
 
 
-    def cut_fun_images(self, path, taxa):
-        # cuts those big fungy images and renames them uniquely and stores each cut sub-image into folder
-        # path/cuts/
-        # to than create subfolder for each isotope in cuts
-        # path/cuts/isotope
-
-        split = '1'
-        resize = True
-        resize_w = 356
-        resize_h = 356
-
-        cuts_path = os.path.join(path, 'cuts')
-
-        ### get labels
-        missing_values = ['', 'unknown', 'unclassified']
-        csv_path = os.path.join(path, 'im_merged.csv')
-        df = pd.read_csv(csv_path, na_values=missing_values)
-
-        # 1)create dictonary -> {mdate_skey : filename}
-        # 2)identify circles in group image, save circle_group_image and produce cuts respectivly
-        # each image contains 12 image crops of fungis
-        # these group images are uniquely identified via date of modification and sample key (skey = A, B, C, ...)
-        # batch_no is later used to get the crop
+    def create_ids_dict(self, path):
+        # create dictonary -> {mdate_skey : filename}
+        print('creating unique file mapping')
         ids_dict = {}
-        # for folderName, subfolders, filenames in os.walk(path):
         filenames = os.listdir(path)
         for file in filenames:
             file_no_ex = file[:-4]
@@ -60,14 +46,65 @@ class DataPrep:
                     mdate_skey = dd + '.' + mm + '.' + yy + '_' + skey
                     # print(file, mdate[2], mdate[1], mdate[0], skey, mdate_skey)
                     ids_dict[mdate_skey] = file
+        return ids_dict
+
+    def cut_fun_images(self, path):
+        ##### has unresolved redundancy with self.create_ids_dict()
+        # cuts those big fungy images and renames them uniquely and stores each cut sub-image into folder
+        # path/cuts/
+        # defines and declares
+        # self.ids_dict
+        # which is a dictionary to map file unique identifier (mixture of date and name and csv) to a unique filename
+
+        print('cutting images')
+        resize = True
+        resize_w = 356
+        resize_h = 356
+
+        cuts_path = os.path.join(path, 'cuts')
+
+        # 1)create dictonary -> {mdate_skey : filename}
+        # 2)identify circles in group image, save circle_group_image and produce cuts respectivly
+        # each image contains 12 image crops of fungis
+        # these group images are uniquely identified via date of modification and sample key (skey = A, B, C, ...)
+        # batch_no is later used to get the crop
+        self.ids_dict = {}
+        # for folderName, subfolders, filenames in os.walk(path):
+        filenames = os.listdir(path)
+        for file in filenames:
+            file_no_ex = file[:-4]
+            # rule out unwanted files such as Mo013.tif (not labeled) or  Eka_9.12.17_F(2).tif (pedridish flipped)
+            if len(file_no_ex.split('_')) > 1:
+                if not ((file_no_ex[0] == 'E' and file_no_ex.split('_')[-1][-1] == ')')):
+                    # print('cutting', file)
+                    skey = file_no_ex.split('_')[-1][0]
+                    mdate = time.gmtime(os.path.getmtime(os.path.join(path, file)))
+                    dd = str(mdate[2])
+                    if len(str(mdate[1])) == 1:
+                        mm = '0' + str(mdate[1])
+                    else:
+                        mm = str(mdate[1])
+                    yy = str(mdate[0])[-2:]
+                    mdate_skey = dd + '.' + mm + '.' + yy + '_' + skey
+                    # print(file, mdate[2], mdate[1], mdate[0], skey, mdate_skey)
+                    self.ids_dict[mdate_skey] = file
 
                     ### identify petri dishes
                     if file[-3:] == 'tif':
-                        self.cut_image(path, file, cuts_path, mdate_skey, resize=resize, resize_w=resize_w,
+                        self.cut_image(path=path, file=file, cuts_path=cuts_path, mdate_skey=mdate_skey, resize=resize, resize_w=resize_w,
                                        resize_h=resize_h)
 
-        img_cut = None
-        img_file = None
+    def create_subfolders_acc_to_taxa(self, path, taxa, df, ids_dict):
+        # to than create subfolder for each isotope in cuts
+        # path/cuts/isotope
+        ### get labels
+        # missing_values = ['', 'unknown', 'unclassified']
+        # csv_path = os.path.join(path, 'im_merged.csv')
+        # df = pd.read_csv(csv_path, na_values=missing_values)
+
+        print('creating subfolder according taxonomic group')
+        cuts_path = os.path.join(path, 'cuts')
+
         ### get labels, identify images and crop, save image crop and label to folder
         for index, row in df.iterrows():
             # get mdate_skey (unique group image identifier) and label
@@ -89,17 +126,16 @@ class DataPrep:
                     shutil.copy(file, this_cut_path)
             # else:
             #     print('NaN in Tax for %s'%file_name)
-            # break
 
     def sample(self, path, ratio = {'train':0.85, 'test': 0.1, 'validation': 0.05}):
         # Create directories:
-        # path/cuts/
+        # already exists: path/cuts/
         # path/cuts/train/
         # path/cuts/test/
         # path/cuts/val/
         # sample images in
 
-
+        print('sampling into directories: train, test, val')
         src_path = path
         cuts_path = os.path.join(path, 'cuts')
         train_path = os.path.join(path, 'train')
@@ -133,11 +169,6 @@ class DataPrep:
         filenames = [elem for elem in filenames if elem not in val_images]
         test_images = filenames
 
-        # # whole path
-        # train_images = [os.path.join(path, file) for file in train_images_file]
-        # val_images = [os.path.join(path, file) for file in val_images_file]
-        # test_images = [os.path.join(path, file) for file in test_images_file]
-
         makedirs(train_path)
         makedirs(val_path)
         makedirs(test_path)
@@ -147,7 +178,6 @@ class DataPrep:
             makedirs(os.path.join(val_path, l))
             makedirs(os.path.join(test_path, l))
 
-        ##########################################  not right yet
         # Copy files to corresponding directory
         for file in train_images:
             split_list = file.split('/')
@@ -187,6 +217,7 @@ class DataPrep:
         return circles
 
     def cut_image(self, path, file, cuts_path, mdate_skey, resize_w=None, resize_h=None, resize=False):
+
         #check if already computed
         output_file_name = file.rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cuts' + '.png'
         output_file = os.path.join(cuts_path, output_file_name)
@@ -207,28 +238,7 @@ class DataPrep:
             param2 = 100
             minRadius = 250  # HoughCircles will look for circles at minimum this size
             maxRadius = 350
-            # if file[:3] == 'Eka' or file[:3] == 'EKA': # 5100 x 7019
-            #     dp=1.4
-            #     minDist=1300  # number of pixels center of circles should be from each other, hardcode
-            #     param1=10
-            #     param2=100
-            #     minRadius=600    #HoughCircles will look for circles at minimum this size
-            #     maxRadius=700
-            # elif file[:3] == 'MOM':
-            #     if len(file.split('_')) == 4 and file.split('_')[2] != '017': # 2550 x 3509
-            #         dp = 1.4
-            #         minDist = 650
-            #         param1 = 10
-            #         param2 = 100
-            #         minRadius = 250  # HoughCircles will look for circles at minimum this size
-            #         maxRadius = 350
-            #     else:# 6800 x 9359
-            #         dp = 1.4
-            #         minDist = 1700
-            #         param1 = 10
-            #         param2 = 100
-            #         minRadius = 700  # HoughCircles will look for circles at minimum this size
-            #         maxRadius = 950
+
             # identify position of petridishes
             limit_difference = minRadius//2
             output = image.copy()
@@ -297,7 +307,13 @@ class DataPrep:
                 cv2.imwrite(output_file, output)
 
     def clean_up(self, path):
-        cuts_path = os.path.join(path, 'cuts')
+        # removes directories, as they need to be made anew for each taxonomic rank
+        # removed are:
+        # path/train
+        # path/val
+        # path/test
+        print('cleaning directories')
+        # cuts_path = os.path.join(path, 'cuts')
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
         test_path = os.path.join(path, 'test')
@@ -308,9 +324,9 @@ class DataPrep:
             shutil.rmtree(test_path)
         if os.path.isdir(val_path):
             shutil.rmtree(val_path)
-        if os.path.isdir(cuts_path):
-            for item in os.listdir(cuts_path):
-                subdir = os.path.join(cuts_path,item)
-                if os.path.isdir(subdir):
-                    shutil.rmtree(subdir)
+        # if os.path.isdir(cuts_path):
+        #     for item in os.listdir(cuts_path):
+        #         subdir = os.path.join(cuts_path,item)
+        #         if os.path.isdir(subdir):
+        #             shutil.rmtree(subdir)
 
