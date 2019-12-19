@@ -21,6 +21,8 @@ class DataPrep:
             self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, ids_dict=ids_dict)
             self.sample(path)
         if type == 'zooscan':
+            self.clean_up(path)
+
             pass
 
 
@@ -95,13 +97,10 @@ class DataPrep:
                                        resize_h=resize_h)
 
     def create_subfolders_acc_to_taxa(self, path, taxa, df, ids_dict):
-        # to than create subfolder for each isotope in cuts
+        # zoscan ds:
+        # fungi ds:
+        # create subfolder for each isotope in cuts
         # path/cuts/isotope
-        ### get labels
-        # missing_values = ['', 'unknown', 'unclassified']
-        # csv_path = os.path.join(path, 'im_merged.csv')
-        # df = pd.read_csv(csv_path, na_values=missing_values)
-
         print('creating subfolder according taxonomic group')
         cuts_path = os.path.join(path, 'cuts')
 
