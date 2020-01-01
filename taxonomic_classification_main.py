@@ -13,7 +13,7 @@ def parse_opts():
     parser = argparse.ArgumentParser(description='Taxonmic Rank Classification',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--data', type=str, required=True,
-                        help='fungi or zoo')
+                        help='fun or zoo')
     opts = parser.parse_args()
     return opts
 
@@ -40,17 +40,16 @@ def plot_classification_acc(x, y, colors, title, axis=None):
 
 
 opts = parse_opts()
-data_set = opts.data
-print('processing %s'%data_set)
-df = None
-if data_set == 'fungi':
+dataset = opts.data
+print('processing %s' % dataset)
+if dataset == 'fun':
     path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
     missing_values = ['', 'unknown', 'unclassified']
     taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 
     csv_path = os.path.join(path, 'im_merged.csv')
     df = pd.read_csv(csv_path, na_values=missing_values)
-elif data_set == 'zoo':
+elif dataset == 'zoo':
     path = "/home/stillsen/Documents/Data/ZooNet/ZooScanSet/imgs"
     missing_values = ['',
                           'artefact',
@@ -77,8 +76,14 @@ num_workers = cpu_count()
 num_gpus = 1
 per_device_batch_size = 1
 batch_size = per_device_batch_size * max(num_gpus, 1)
+
+#PARAMETERS Model
 metric = mx.metric.Accuracy()
 # metric = mx.metric.F1()
+# binary relevance approach -> ignores possible correlations
+multilabel_lvl = 1
+# multilabel/-class approach -> sigmoid in last layer
+# multilabel_lvl = 2
 
 # PARAMETERS Augmentation
 jitter_param = 0.4
@@ -100,36 +105,41 @@ for i, taxa in enumerate(taxonomic_groups):
     print('working in taxonomic group: %s' %taxa)
 
     print('prepraring data')
-    DataPrep(taxa=taxa, path=path, type = data_set, df=df)
+    if multilabel_lvl == 2: taxa = 'all'
+
+    DataPrep(taxa=taxa, path=path, dataset= dataset, df=df)
 
     print('loading image folder dataset')
     data_handler = DataHandler(path=path,
-                               batch_size = batch_size,
+                               batch_size=batch_size,
                                num_workers=num_workers,
-                               transform = True)
+                               transform=True)
     classes = data_handler.classes
 
     print('loading model')
     model = ModelHandler(classes=classes,
                          batch_size=batch_size,
                          num_workers=num_workers,
-                         metrics=metric)
+                         metrics=metric,
+                         multi_label_lvl=multilabel_lvl)
+
     ### load parameters if already trained, otherwise train
     model_loaded = False
     param_file = ''
     e = -1
     for file_name in os.listdir(path):
-        if re.match('%s-%s-model_parameter'%(data_set,taxa), file_name):
+        if re.match('%s-%s-'%(dataset, taxa), file_name):
             if int(file_name.split('-')[-1][0]) > e:
                 e = int(file_name.split('-')[-1][0])
                 param_file = os.path.join(path, file_name)
             model_loaded = True
     if not model_loaded: # train
-        print('training model for %s-%s' %(data_set,taxa))
+        print('training model for %s-%s' % (dataset, taxa))
         model.train(train_iter=data_handler.train_data,
                     val_iter=data_handler.test_data,
                     epochs=epochs,
                     path=path,
+                    dataset=dataset,
                     taxa=taxa)
     else:
         model.net.load_parameters(param_file)
@@ -140,7 +150,7 @@ for i, taxa in enumerate(taxonomic_groups):
     y = list(data_handler.samples_per_class.values())
 
 
-    ax = fig.add_subplot(2, 3, i)
+    ax = fig.add_subplot(2, 3, i+1)
     title = 'Acc %s' %taxa
     plot_classification_acc(x=x,
                     y=y,

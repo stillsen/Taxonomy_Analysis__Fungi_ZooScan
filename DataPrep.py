@@ -8,8 +8,10 @@ from matplotlib import pyplot as plt
 from matplotlib import image as plti
 
 class DataPrep:
-    def __init__(self, path, taxa, type, df):
-        if type == 'fungi':
+    def __init__(self, path, taxa, dataset, df):
+        cuts_path = os.path.join(path, 'cuts')
+        makedirs(cuts_path)
+        if dataset == 'fun':
             # removes path/train, path/test and path/val
             # builds up mapping from unique identiefier to file
             # if enabled extracts circles and saves the cuts in self.cut_fun_images()
@@ -18,11 +20,12 @@ class DataPrep:
             self.clean_up(path)
             # self.cut_fun_images(path, taxa)
             ids_dict = self.create_ids_dict(path=path)
-            self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, ids_dict=ids_dict)
+            self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, dataset=dataset, ids_dict=ids_dict)
             self.sample(path)
-        if type == 'zooscan':
+        if dataset == 'zoo':
             self.clean_up(path)
-
+            self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, dataset=dataset)
+            self.sample(path)
             pass
 
 
@@ -96,35 +99,45 @@ class DataPrep:
                         self.cut_image(path=path, file=file, cuts_path=cuts_path, mdate_skey=mdate_skey, resize=resize, resize_w=resize_w,
                                        resize_h=resize_h)
 
-    def create_subfolders_acc_to_taxa(self, path, taxa, df, ids_dict):
-        # zoscan ds:
-        # fungi ds:
+    def create_subfolders_acc_to_taxa(self, path, taxa, df, dataset, ids_dict=None):
+        # dataset: fun or zoo
+        # taxa: all or specific taxonomic rank
+        # ids_dict is only used in fungi ds
+        #
         # create subfolder for each isotope in cuts
         # path/cuts/isotope
+
         print('creating subfolder according taxonomic group')
         cuts_path = os.path.join(path, 'cuts')
 
-        ### get labels, identify images and crop, save image crop and label to folder
-        for index, row in df.iterrows():
-            # get mdate_skey (unique group image identifier) and label
-            mdate_skey = row['Scan.date']
-            pos = row['Pos.scan']
-            label = row[taxa]
-            # get file
-            file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
-            file = os.path.join(cuts_path, file_name)
-            # print('loading: ', file_name)
-            # img_file = img.imread(file)
-            this_cut_path = os.path.join(cuts_path, str(label))
-            makedirs(this_cut_path)
-            # file doesnt exist AND TAXA IS NOT NAN
-            # print(row[taxa])
-            if not pd.isnull(row[taxa]):
-                # print('is na')
-                if not os.path.exists(os.path.join(this_cut_path, file_name)):
-                    shutil.copy(file, this_cut_path)
-            # else:
-            #     print('NaN in Tax for %s'%file_name)
+        if dataset == 'fun':
+            ### get labels, identify images and crop, save image crop and label to folder
+            for index, row in df.iterrows():
+                # get mdate_skey (unique group image identifier) and label
+                mdate_skey = row['Scan.date']
+                pos = row['Pos.scan']
+                label = row[taxa]
+                # get file
+                file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
+                file = os.path.join(cuts_path, file_name)
+                # print('loading: ', file_name)
+                # img_file = img.imread(file)
+                this_cut_path = os.path.join(cuts_path, str(label))
+                makedirs(this_cut_path)
+                # file doesnt exist AND TAXA IS NOT NAN
+                # print(row[taxa])
+                if not pd.isnull(row[taxa]):
+                    # print('is na')
+                    if not os.path.exists(os.path.join(this_cut_path, file_name)):
+                        shutil.copy(file, this_cut_path)
+                # else:
+                #     print('NaN in Tax for %s'%file_name)
+        elif dataset == 'zoo':
+            for index, row in df.iterrows():
+                # is row entry in desired taxonomic rank?
+                # than
+                pass
+            pass
 
     def sample(self, path, ratio = {'train':0.85, 'test': 0.1, 'validation': 0.05}):
         # Create directories:
@@ -135,12 +148,12 @@ class DataPrep:
         # sample images in
 
         print('sampling into directories: train, test, val')
-        src_path = path
+        # src_path = path
         cuts_path = os.path.join(path, 'cuts')
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
         test_path = os.path.join(path, 'test')
-        makedirs(cuts_path)
+        # makedirs(cuts_path)
         makedirs(train_path)
         makedirs(val_path)
         makedirs(test_path)

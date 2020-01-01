@@ -116,7 +116,7 @@ class ModelHandler:
         return metric.get()
 
 
-    def train(self, train_iter, val_iter, epochs, path, taxa = '', log_interval = 10):
+    def train(self, train_iter, val_iter, epochs, path, dataset, taxa = '', log_interval = 10):
         net = self.net
         ctx = self.ctx
         metric = self.metrics
@@ -174,5 +174,5 @@ class ModelHandler:
             if val_accs > best_acc:
                 best_acc = val_accs
                 print('Best validation acc found. Checkpointing...')
-                net.save_parameters(os.path.join(path, 'deep-fungi-%s-%d.params'%(taxa,epoch)))
+                net.save_parameters(os.path.join(path, '%s-%s-%d.params'%(dataset,taxa,epoch)))
         return net

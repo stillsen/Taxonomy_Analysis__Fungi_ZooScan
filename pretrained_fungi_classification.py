@@ -141,7 +141,7 @@ fig, ax = plt.subplots(2, 3, sharey='row')
 sns.set_context("paper")
 for (i, taxa) in enumerate(taxonomic_groups):
     print('working in taxonomic group: %s' %taxa)
-    DataPrep(taxa=taxa, path=path, type = 'fungi', df=df)
+    DataPrep(taxa=taxa, path=path, dataset='fungi', df=df)
     data_handler = DataHandler(path=path,
                                batch_size = batch_size,
                                num_workers=num_workers,
