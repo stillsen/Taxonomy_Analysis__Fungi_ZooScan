@@ -94,20 +94,93 @@ lighting_param = 0.1
 print('NaNs in the label data set')
 print(df.isnull().sum())
 
+if multilabel_lvl == 1:
+    fig = plt.figure(figsize=(15, 10))
+    subplot = 1
+    for i, taxa in enumerate(taxonomic_groups):
+        print('working in taxonomic group: %s' %taxa)
 
-# taxonomic_groups = ['phylum']
-# fig, ax = plt.subplots(2, 3, sharey='row')
-# sns.set_context("paper")
-fig = plt.figure(figsize=(15, 10))
-# fig.subplots_adjust(hspace=0.4, wspace=0.4)
-subplot = 1
-for i, taxa in enumerate(taxonomic_groups):
-    print('working in taxonomic group: %s' %taxa)
+        print('prepraring data')
+        DataPrep(taxonomic_group=taxa, path=path, dataset= dataset, df=df, multilabel_lvl=multilabel_lvl, taxonomic_groups=taxonomic_groups)
+
+        print('loading image folder dataset')
+        data_handler = DataHandler(path=path,
+                                   batch_size=batch_size,
+                                   num_workers=num_workers,
+                                   transform=True)
+        classes = data_handler.classes
+
+        print('loading model')
+        model = ModelHandler(classes=classes,
+                             batch_size=batch_size,
+                             num_workers=num_workers,
+                             metrics=metric,
+                             multi_label_lvl=multilabel_lvl)
+
+        ### load parameters if already trained, otherwise train
+        model_loaded = False
+        param_file = ''
+        e = -1
+        for file_name in os.listdir(path):
+            if re.match('%s-%s-'%(dataset, taxa), file_name):
+                if int(file_name.split('-')[-1][0]) > e:
+                    e = int(file_name.split('-')[-1][0])
+                    param_file = os.path.join(path, file_name)
+                model_loaded = True
+        if not model_loaded: # train
+            print('training model for %s-%s' % (dataset, taxa))
+            model.train(train_iter=data_handler.train_data,
+                        val_iter=data_handler.test_data,
+                        epochs=epochs,
+                        path=path,
+                        dataset=dataset,
+                        taxonomic_group=taxa)
+        else:
+            model.net.load_parameters(param_file)
+            print('loading %s' %param_file)
+
+
+        x = list(data_handler.samples_per_class.keys())
+        y = list(data_handler.samples_per_class.values())
+
+
+        ax = fig.add_subplot(2, 3, i+1)
+        title = 'Acc %s' %taxa
+        plot_classification_acc(x=x,
+                        y=y,
+                        colors='b',
+                        title=title,
+                        axis=ax)
+        # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
+
+        # if i < 3:
+        #     ax[0][i].xaxis.set_visible(False)
+        #     sns.barplot(x=x, y=y, color="b", ax=ax[0][i])
+        #     ax[0][i].set_title(taxa)
+        # else:
+        #     ax[1][i - 3].xaxis.set_visible(False)
+        #     sns.barplot(x=x,y=y, color="b", ax=ax[1][i - 3])
+        #     ax[1][i - 3].set_title(taxa)
+
+
+        for cl in data_handler.samples_per_class:
+            print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
+            print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
+
+        val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx)
+        print('%s: %s' % (taxa, model.metric_str(val_names, val_accs)))
+
+
+    plt.tight_layout()
+    plt.show()
+elif multilabel_lvl == 2:
+
+    fig = plt.figure(figsize=(15, 10))
+
+    print('working in multilabel taxonomic classification: sigmoid' )
 
     print('prepraring data')
-    if multilabel_lvl == 2: taxa = 'all'
-
-    DataPrep(taxa=taxa, path=path, dataset= dataset, df=df)
+    DataPrep(taxonomic_group=None, path=path, dataset= dataset, df=df, multilabel_lvl=multilabel_lvl, taxonomic_groups=taxonomic_groups)
 
     print('loading image folder dataset')
     data_handler = DataHandler(path=path,
@@ -116,7 +189,7 @@ for i, taxa in enumerate(taxonomic_groups):
                                transform=True)
     classes = data_handler.classes
 
-    print('loading model')
+    print('preparing model class')
     model = ModelHandler(classes=classes,
                          batch_size=batch_size,
                          num_workers=num_workers,
@@ -128,19 +201,18 @@ for i, taxa in enumerate(taxonomic_groups):
     param_file = ''
     e = -1
     for file_name in os.listdir(path):
-        if re.match('%s-%s-'%(dataset, taxa), file_name):
+        if re.match('%s-m_lvl_2-'%(dataset), file_name):
             if int(file_name.split('-')[-1][0]) > e:
                 e = int(file_name.split('-')[-1][0])
                 param_file = os.path.join(path, file_name)
             model_loaded = True
     if not model_loaded: # train
-        print('training model for %s-%s' % (dataset, taxa))
+        print('training model for %s multi lvl' % (dataset))
         model.train(train_iter=data_handler.train_data,
                     val_iter=data_handler.test_data,
                     epochs=epochs,
                     path=path,
-                    dataset=dataset,
-                    taxa=taxa)
+                    dataset=dataset)
     else:
         model.net.load_parameters(param_file)
         print('loading %s' %param_file)
@@ -151,31 +223,20 @@ for i, taxa in enumerate(taxonomic_groups):
 
 
     ax = fig.add_subplot(2, 3, i+1)
-    title = 'Acc %s' %taxa
+    title = 'Acc in ml.....strange yet'
     plot_classification_acc(x=x,
                     y=y,
                     colors='b',
                     title=title,
                     axis=ax)
-    # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
-
-    # if i < 3:
-    #     ax[0][i].xaxis.set_visible(False)
-    #     sns.barplot(x=x, y=y, color="b", ax=ax[0][i])
-    #     ax[0][i].set_title(taxa)
-    # else:
-    #     ax[1][i - 3].xaxis.set_visible(False)
-    #     sns.barplot(x=x,y=y, color="b", ax=ax[1][i - 3])
-    #     ax[1][i - 3].set_title(taxa)
-
 
     for cl in data_handler.samples_per_class:
-        print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
-        print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
+        print("not resampled --- %s: %d"%(cl,data_handler.samples_per_class[cl]))
+        print("    resampled --- %s: %d" % (cl, data_handler.samples_per_class_normalized[cl]))
 
     val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx)
-    print('%s: %s' % (taxa, model.metric_str(val_names, val_accs)))
+    print(' %s' % (model.metric_str(val_names, val_accs)))
 
 
-plt.tight_layout()
-plt.show()
+    plt.tight_layout()
+    plt.show()
