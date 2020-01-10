@@ -8,7 +8,8 @@ from matplotlib import pyplot as plt
 from matplotlib import image as plti
 
 class DataPrep:
-    def __init__(self, path, taxa, dataset, df):
+    def __init__(self, path, taxonomic_group, dataset, df, taxonomic_groups = None, multilabel_lvl=1):
+        self.taxonomic_groups = taxonomic_groups
         cuts_path = os.path.join(path, 'cuts')
         makedirs(cuts_path)
         if dataset == 'fun':
@@ -20,11 +21,11 @@ class DataPrep:
             self.clean_up(path)
             # self.cut_fun_images(path, taxa)
             ids_dict = self.create_ids_dict(path=path)
-            self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, dataset=dataset, ids_dict=ids_dict)
+            self.create_subfolders_acc_to_taxa(path=path, taxonomic_group=taxonomic_group, df=df, dataset=dataset, ids_dict=ids_dict, multilabel_lvl=multilabel_lvl)
             self.sample(path)
         if dataset == 'zoo':
             self.clean_up(path)
-            self.create_subfolders_acc_to_taxa(path=path, taxa=taxa, df=df, dataset=dataset)
+            self.create_subfolders_acc_to_taxa(path=path, taxonomic_group=taxonomic_group, df=df, dataset=dataset, multilabel_lvl=multilabel_lvl)
             self.sample(path)
             pass
 
@@ -99,7 +100,8 @@ class DataPrep:
                         self.cut_image(path=path, file=file, cuts_path=cuts_path, mdate_skey=mdate_skey, resize=resize, resize_w=resize_w,
                                        resize_h=resize_h)
 
-    def create_subfolders_acc_to_taxa(self, path, taxa, df, dataset, ids_dict=None):
+
+    def create_subfolders_acc_to_taxa(self, path, taxonomic_group, df, dataset, ids_dict=None, multilabel_lvl=1):
         # dataset: fun or zoo
         # taxa: all or specific taxonomic rank
         # ids_dict is only used in fungi ds
@@ -107,37 +109,76 @@ class DataPrep:
         # create subfolder for each isotope in cuts
         # path/cuts/isotope
 
-        print('creating subfolder according taxonomic group')
+
         cuts_path = os.path.join(path, 'cuts')
 
+
         if dataset == 'fun':
-            ### get labels, identify images and crop, save image crop and label to folder
-            for index, row in df.iterrows():
-                # get mdate_skey (unique group image identifier) and label
-                mdate_skey = row['Scan.date']
-                pos = row['Pos.scan']
-                label = row[taxa]
-                # get file
-                file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
-                file = os.path.join(cuts_path, file_name)
-                # print('loading: ', file_name)
-                # img_file = img.imread(file)
-                this_cut_path = os.path.join(cuts_path, str(label))
-                makedirs(this_cut_path)
-                # file doesnt exist AND TAXA IS NOT NAN
-                # print(row[taxa])
-                if not pd.isnull(row[taxa]):
-                    # print('is na')
-                    if not os.path.exists(os.path.join(this_cut_path, file_name)):
-                        shutil.copy(file, this_cut_path)
-                # else:
-                #     print('NaN in Tax for %s'%file_name)
+            if multilabel_lvl == 1:
+                print('creating subfolder according to taxonomic group')
+                ### get labels, identify images and crop, save image crop and label to folder
+                for index, row in df.iterrows():
+                    # get mdate_skey (unique group image identifier) and label
+                    mdate_skey = row['Scan.date']
+                    pos = row['Pos.scan']
+                    label = row[taxonomic_group]
+                    # get file
+                    file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
+                    file = os.path.join(cuts_path, file_name)
+                    # create subfolder in cuts according to taxonomic resolution
+                    this_taxon_to_folder = os.path.join(cuts_path, str(label))
+                    makedirs(this_taxon_to_folder)
+                    # if the isomorph is classified in this taxonomic resolution, copy it to it's folder
+                    if not pd.isnull(row[taxonomic_group]):
+                        if not os.path.exists(os.path.join(this_taxon_to_folder, file_name)):
+                            shutil.copy(file, this_taxon_to_folder)
+
+            elif multilabel_lvl == 2:
+                # get labels, identify images
+                # copy this isomorphe image to
+                # each folder of it's classified taxonomic rank
+                print('creating subfolders for multilabel')
+                for index, row in df.iterrows():
+                    # get mdate_skey (unique group image identifier) and label
+                    mdate_skey = row['Scan.date']
+                    pos = row['Pos.scan']
+                    # get file
+                    file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
+                    file_from = os.path.join(cuts_path, file_name)
+
+                    # loop over the taxonomic groups listed self.taxonomic_groups
+                    # for each taxonomic group create a subfolder with the name of the current taxon according to the
+                    # current taxonomic resolution
+                    # copy the file there
+                    for tg in self.taxonomic_groups:
+                        if not pd.isnull(row[tg]):
+                            taxon = row[tg]
+                            # create a subfolder cutspath/m_lvl, in which all the taxon folder are to be created
+                            # m_lvl_path = os.path.join(cuts_path, "m_lvl")
+                            # if not os.path.exists(m_lvl_path): makedirs(m_lvl_path)
+                            #
+                            taxon_path = os.path.join(cuts_path, str(taxon))
+                            if not os.path.exists(taxon_path): makedirs(taxon_path)
+
+                            file_to = os.path.join(taxon_path, file_name)
+                            # print("copying from:  %s to:  %s" %(file_from,file_to))
+                            if not os.path.exists(file_to): shutil.copy(file_from, file_to)
+
         elif dataset == 'zoo':
-            for index, row in df.iterrows():
-                # is row entry in desired taxonomic rank?
-                # than
+            if multilabel_lvl == 1:
+                # get all taxons in this rank
+                taxons = df.loc[df['rank'] == taxonomic_group].taxon.unique()
+                # for each taxon
+                # copy its image folder to path\cuts\this_taxon_folder
+                for this_taxon in taxons:
+                    this_taxon_from_folder = os.path.join(path, this_taxon)
+                    this_taxon_to_folder = os.path.join(cuts_path, this_taxon)
+                    if not os.path.exists(this_taxon_to_folder):
+                        # makedirs(this_taxon_to_folder)
+                        shutil.copytree(this_taxon_from_folder, this_taxon_to_folder)
+
+            elif multilabel_lvl == 2:
                 pass
-            pass
 
     def sample(self, path, ratio = {'train':0.85, 'test': 0.1, 'validation': 0.05}):
         # Create directories:
@@ -325,7 +366,7 @@ class DataPrep:
         # path/val
         # path/test
         print('cleaning directories')
-        # cuts_path = os.path.join(path, 'cuts')
+        cuts_path = os.path.join(path, 'cuts')
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
         test_path = os.path.join(path, 'test')
@@ -336,9 +377,10 @@ class DataPrep:
             shutil.rmtree(test_path)
         if os.path.isdir(val_path):
             shutil.rmtree(val_path)
-        # if os.path.isdir(cuts_path):
-        #     for item in os.listdir(cuts_path):
-        #         subdir = os.path.join(cuts_path,item)
-        #         if os.path.isdir(subdir):
-        #             shutil.rmtree(subdir)
+        # only erase subfolders, not files
+        if os.path.isdir(cuts_path):
+            for item in os.listdir(cuts_path):
+                subdir = os.path.join(cuts_path,item)
+                if os.path.isdir(subdir):
+                    shutil.rmtree(subdir)
 
