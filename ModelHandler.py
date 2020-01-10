@@ -38,6 +38,8 @@ class ModelHandler:
         self.gpus = mx.test_utils.list_gpus()
         self.ctx = [mx.gpu(i) for i in self.gpus] if len(self.gpus) > 0 else [mx.cpu()]
 
+        self.multi_label_lvl = multi_label_lvl
+
         self.net = self.setup_net(multi_label_lvl=multi_label_lvl,
                                   model_name=model_name,
                                   pretrained=pretrained,
@@ -116,7 +118,7 @@ class ModelHandler:
         return metric.get()
 
 
-    def train(self, train_iter, val_iter, epochs, path, dataset, taxa = '', log_interval = 10):
+    def train(self, train_iter, val_iter, epochs, path, dataset, taxonomic_group ='', log_interval = 10):
         net = self.net
         ctx = self.ctx
         metric = self.metrics
@@ -144,6 +146,7 @@ class ModelHandler:
             metric.reset()
 
             for i, batch in enumerate(train_iter):
+                print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
                 # the model zoo models expect normalized images
                 data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
@@ -174,5 +177,8 @@ class ModelHandler:
             if val_accs > best_acc:
                 best_acc = val_accs
                 print('Best validation acc found. Checkpointing...')
-                net.save_parameters(os.path.join(path, '%s-%s-%d.params'%(dataset,taxa,epoch)))
+                if self.multi_label_lvl == 1:
+                    net.save_parameters(os.path.join(path, '%s-%s-%d' % (dataset, taxonomic_group, epoch)))
+                elif self.multi_label_lvl == 2:
+                    net.save_parameters(os.path.join(path, '%s-m_lvl_2-%d' % (dataset, epoch)))
         return net
