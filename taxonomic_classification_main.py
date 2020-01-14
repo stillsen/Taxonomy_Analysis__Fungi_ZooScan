@@ -43,13 +43,17 @@ opts = parse_opts()
 dataset = opts.data
 print('processing %s' % dataset)
 if dataset == 'fun':
+    # Parameters ---------
     path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
     missing_values = ['', 'unknown', 'unclassified']
     taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    transform = True
+    # --------------------
 
     csv_path = os.path.join(path, 'im_merged.csv')
     df = pd.read_csv(csv_path, na_values=missing_values)
 elif dataset == 'zoo':
+    # Parameters ---------
     path = "/home/stillsen/Documents/Data/ZooNet/ZooScanSet/imgs"
     missing_values = ['',
                           'artefact',
@@ -66,7 +70,10 @@ elif dataset == 'zoo':
                           'Pyrosomatida',
                           'ephyra']
     # taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
-    taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    taxonomic_groups = ['phylum', 'class', 'subclass', 'order', 'suborder', 'infraorder', 'family', 'genus', 'species']
+    transform = False
+    # --------------------
+
     csv_path = os.path.join(path, 'zoo_df.csv')
     df = pd.read_csv(csv_path, na_values=missing_values)
 
@@ -74,7 +81,7 @@ elif dataset == 'zoo':
 epochs = 3
 num_workers = cpu_count()
 num_gpus = 1
-per_device_batch_size = 1
+per_device_batch_size = 100
 batch_size = per_device_batch_size * max(num_gpus, 1)
 
 #PARAMETERS Model
@@ -84,6 +91,7 @@ metric = mx.metric.Accuracy()
 multilabel_lvl = 1
 # multilabel/-class approach -> sigmoid in last layer
 # multilabel_lvl = 2
+
 
 # PARAMETERS Augmentation
 jitter_param = 0.4
@@ -98,16 +106,17 @@ if multilabel_lvl == 1:
     fig = plt.figure(figsize=(15, 10))
     subplot = 1
     for i, taxa in enumerate(taxonomic_groups):
-        print('working in taxonomic group: %s' %taxa)
+        print('------------------------------------------')
+        print('working in taxonomic rank: %s' %taxa)
 
         print('prepraring data')
-        DataPrep(taxonomic_group=taxa, path=path, dataset= dataset, df=df, multilabel_lvl=multilabel_lvl, taxonomic_groups=taxonomic_groups)
+        data_prepper = DataPrep(rank=taxa, path=path, dataset= dataset, df=df, multilabel_lvl=multilabel_lvl, taxonomic_groups=taxonomic_groups)
 
         print('loading image folder dataset')
-        data_handler = DataHandler(path=path,
+        data_handler = DataHandler(path=data_prepper.imagefolder_path,
                                    batch_size=batch_size,
                                    num_workers=num_workers,
-                                   transform=True)
+                                   transform=transform)
         classes = data_handler.classes
 
         print('loading model')
@@ -180,13 +189,13 @@ elif multilabel_lvl == 2:
     print('working in multilabel taxonomic classification: sigmoid' )
 
     print('prepraring data')
-    DataPrep(taxonomic_group=None, path=path, dataset= dataset, df=df, multilabel_lvl=multilabel_lvl, taxonomic_groups=taxonomic_groups)
+    data_prepper = DataPrep(rank=None, path=path, dataset= dataset, df=df, multilabel_lvl=multilabel_lvl, taxonomic_groups=taxonomic_groups)
 
     print('loading image folder dataset')
-    data_handler = DataHandler(path=path,
+    data_handler = DataHandler(path=data_prepper.imagefolder_path,
                                batch_size=batch_size,
                                num_workers=num_workers,
-                               transform=True)
+                               transform=transform)
     classes = data_handler.classes
 
     print('preparing model class')
