@@ -27,7 +27,7 @@ def load_ncbi():
     #     ncbi = pickle.load(open(file_name,'rb'))
     # print('ncbi loaded')
     ncbi = NCBITaxa()
-    ncbi.update_taxonomy_database()
+    # ncbi.update_taxonomy_database()
     return ncbi
 
 def tax_distr(df):
@@ -63,6 +63,8 @@ def prepare_fun_df(df, higher_taxonomic_groups = ['kingdom', 'phylum', 'class', 
 def prepare_zoo_df(csv_path, na_values):
     df = pd.read_csv(csv_path, na_values=na_values)
     file = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/zoo_df.csv'
+    file_ur = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/zoo_unique_ranks_df.csv'
+
     if not path.exists(file):
         # load ncbi database
         ncbi = load_ncbi()
@@ -102,7 +104,7 @@ def prepare_zoo_df(csv_path, na_values):
         max_lineage = max(df['lineage'].apply(len))-3
         print('maximum lineage found: %s'%max_lineage)
 
-        taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+        # taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
 
         #sort out 'non-livning' by adding easily accessible column 'living'
         #create array
@@ -112,44 +114,77 @@ def prepare_zoo_df(csv_path, na_values):
         #df of all living organisms
         living_df = df.loc[df['living']==True]
 
-        # df['rank'] = np.nan
-        #feed each taxon into ncbi db to get rank
-        #if previous row has equal taxon, just copy the rank
-        #first write all ranks into a list, attach this list as column in the end (speed up)
-        prev_taxon = ''
-        prev_rank = ''
+        # ------------------------------
+        # #feed each taxon into ncbi db to get rank
+        # #if previous row has equal taxon, just copy the rank
+        # #first write all ranks into a list, attach this list as column in the end (speed up)
+        # prev_taxon = ''
+        # prev_rank = ''
+        # ranks = []
+        # for index, row in df.iterrows():
+        #     print('updating rank in row: %s'%index)
+        #     taxon = row['taxon']
+        #     if prev_taxon == taxon:
+        #         #copy rank
+        #         # df['rank'][index] = prev_rank
+        #         ranks.append(prev_rank)
+        #     else:
+        #         # look up taxon rank at ncbi and store it
+        #         name2taxid = ncbi.get_name_translator([taxon])
+        #         taxid = name2taxid[taxon]
+        #         taxid2rank = ncbi.get_rank(taxid)
+        #         # df['rank'][index] = taxid2rank[taxid[0]]
+        #         rank = taxid2rank[taxid[0]]
+        #         #replace curiosities like infrorder, subclass...
+        #         if rank == 'subclass':
+        #             rank = 'class'
+        #         if rank == 'infraorder':
+        #             rank = 'order'
+        #         if rank == 'suborder':
+        #             rank = 'order'
+        #         ranks.append(rank)
+        #         prev_rank = rank
+        #     prev_taxon = taxon
+        # --------------------------------
+        # feed the whole lineage into ncbi db to get a list of ranks
         ranks = []
+        rank = []
+        unique_zoo_ranks = []
         for index, row in df.iterrows():
-            print('updating rank in row: %s'%index)
-            taxon = row['taxon']
-            if prev_taxon == taxon:
-                #copy rank
-                # df['rank'][index] = prev_rank
-                ranks.append(prev_rank)
-            else:
-                # look up taxon rank at ncbi and store it
-                name2taxid = ncbi.get_name_translator([taxon])
-                taxid = name2taxid[taxon]
-                taxid2rank = ncbi.get_rank(taxid)
-                # df['rank'][index] = taxid2rank[taxid[0]]
-                rank = taxid2rank[taxid[0]]
-                #replace curiosities like infrorder, subclass...
-                if rank == 'subclass':
-                    rank = 'class'
-                if rank == 'infraorder':
-                    rank = 'order'
-                if rank == 'suborder':
-                    rank = 'order'
-                ranks.append(rank)
-                prev_rank = rank
-            prev_taxon = taxon
+            print('updating rank in row: %s' % index)
+            lineage = row['lineage']
+
+            # dictionary that maps taxon name to ncbi_tax_id
+            name2taxid = ncbi.get_name_translator(lineage)
+            # loop over lineage and look up each listed taxon rank at ncbi and store it in a list
+            lineage_ranks = []
+            for taxon in lineage[4:]:
+                try:
+                    tax_id = name2taxid[taxon]
+                    taxid2rank = ncbi.get_rank(tax_id)
+                    lineage_ranks.append(taxid2rank[tax_id[0]])
+                    unique_zoo_ranks = list(unique_zoo_ranks)
+                    unique_zoo_ranks.extend(lineage_ranks)
+                except:
+                    lineage_ranks.append('')
+            unique_zoo_ranks = set(unique_zoo_ranks)
+            ranks.append(lineage_ranks)
+            rank.append(lineage_ranks[-1])
         print('adding ranks to df')
-        df['rank'] = pd.Series(ranks)
+        df['ranks'] = pd.Series(ranks)
+        df['rank'] = pd.Series(rank)
         df = df.dropna()
         print('saving df')
         df.to_csv(file)
+
+        # df_ur = pd.DataFrame()
+        # df_ur['unique_ranks'] = pd.Series(list(unique_zoo_ranks))
+        # df_ur.to_csv(file_ur)
+        print('ranks in zoo ds: %s' % list(unique_zoo_ranks))
     else:
         df = pd.read_csv(file, na_values=missing_values_zoo)
+        # unique_zoo_ranks = pd.read_csv(file_ur)
+        # unique_zoo_ranks = list(unique_zoo_ranks['unique_ranks'])
         #load
 
     return df
@@ -157,7 +192,7 @@ def prepare_zoo_df(csv_path, na_values):
 def split_lineage(str):
     return str.split('/')
 
-def plot_taxon_dist(x, y, rank, cc, cmap, colors, taxonomic_groups, taxonomic_groups_to_color, title):
+def plot_taxon_dist(x, y, rank, cc, cmap, colors, taxonomic_groups, taxonomic_groups_to_color, title, offset = 0.0):
     fig, ax = plt.subplots(figsize=(15, 6))
     taxon_plot = ax.bar(x, y, color=colors)
 
@@ -167,7 +202,8 @@ def plot_taxon_dist(x, y, rank, cc, cmap, colors, taxonomic_groups, taxonomic_gr
     # color bar
     cbar = plt.colorbar(sm)
     cbar.set_label('Taxonomic Rank', rotation=270, labelpad=25)
-    cbar.set_ticks([taxonomic_groups_to_color[x] - 0.0625 for x in taxonomic_groups])
+    # cbar.set_ticks([taxonomic_groups_to_color[x] - 0.0625 for x in taxonomic_groups])
+    cbar.set_ticks([taxonomic_groups_to_color[x] + offset for x in taxonomic_groups])
     cbar.set_ticklabels(taxonomic_groups)
 
     # y ticks
@@ -238,7 +274,8 @@ def plot_fun(df_fun):
                     colors=colors,
                     taxonomic_groups=taxonomic_groups,
                     taxonomic_groups_to_color=taxonomic_groups_to_color,
-                    title=title)
+                    title=title,
+                    offset=-0.0625)
     plt.savefig('Taxonomic_Distribution_-_Fungi_Dataset.png', bbox_inches='tight')
     ##plot fun:  classes vs count with taxonomic rank colorcoded
     #value count of rank
@@ -296,15 +333,25 @@ def plot_zoo(df_zoo):
     y_zoo = df_zoo['taxon'].value_counts()
 
     # color coding taxonomic ranks
-    taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-    taxonomic_groups_to_color = { 'phylum': 0.857, 'class': 0.714, 'order': 0.571, 'family': 0.429,
-                                 'genus': 0.286, 'species': 0.143}
+    taxonomic_groups = ['phylum', 'class', 'subclass', 'order', 'suborder', 'infraorder', 'family', 'genus', 'species']
+    taxonomic_groups_to_color = { 'phylum': 0.9,
+                                  'class': 0.8,
+                                  'subclass': 0.7,
+                                  'order': 0.6,
+                                  'suborder':0.5,
+                                  'infraorder':0.4,
+                                  'family': 0.3,
+                                  'genus': 0.2,
+                                  'species': 0.1}
+    # taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    # taxonomic_groups_to_color = { 'phylum': 0.857, 'class': 0.714, 'order': 0.571, 'family': 0.429,
+    #                              'genus': 0.286, 'species': 0.143}
     #get maximum classification class
     rank = [df_zoo.loc[df_zoo['taxon'] == x]['rank'].tolist()[0] for x in x_zoo]
     #color code maximum classification class
     cc = [taxonomic_groups_to_color[x] for x in rank]
     #receive color map
-    cmap = plt.cm.get_cmap('Dark2', 6)
+    cmap = plt.cm.get_cmap('tab10', 9)
     #encode cc in cmap
     colors = cmap(cc)
 
@@ -317,7 +364,8 @@ def plot_zoo(df_zoo):
                     colors=colors,
                     taxonomic_groups=taxonomic_groups,
                     taxonomic_groups_to_color=taxonomic_groups_to_color,
-                    title=title)
+                    title=title,
+                    offset=-1/20)
     plt.savefig('Taxonomic_Distribution_-_ZooScan_Dataset.png', bbox_inches='tight')
     ##plot zoo:  classes vs count with taxonomic rank colorcoded
     #value count of rank
@@ -326,7 +374,7 @@ def plot_zoo(df_zoo):
     class_count = [raw_class_count[c] if c in raw_class_count else 0 for c in taxonomic_groups]
     #color encode
     cc = [taxonomic_groups_to_color[x] for x in taxonomic_groups]
-    cmap = plt.cm.get_cmap('Dark2', 6)
+    cmap = plt.cm.get_cmap('tab10', 9)
     colors = cmap(cc)
 
     title = 'Class Distribution - ZooScan Dataset'
@@ -352,7 +400,8 @@ def plot_zoo(df_zoo):
             x = sub_df['taxon'].value_counts().index.tolist()
             # count
             y = sub_df['taxon'].value_counts()
-            ax = fig.add_subplot(2, 3, subplot)
+            # ax = fig.add_subplot(2, 3, subplot)
+            ax = fig.add_subplot(5, 3, subplot)
             plot_class_dist(x=x,
                             y=y,
                             colors=color,
@@ -398,7 +447,7 @@ csv_path = os.path.join(path_zoo, tax_file_zoo)
 df_zoo = prepare_zoo_df(csv_path, na_values=missing_values_zoo)
 
 
-## figures
-plot_fun(df_fun)
+# ## figures
+# plot_fun(df_fun)
 plot_zoo(df_zoo)
 plt.show()
