@@ -3,30 +3,41 @@ import pandas as pd
 from gluoncv.utils import makedirs
 import mxnet.image as img
 import mxnet as mx
+import ast
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import image as plti
 
+
 class DataPrep:
-    def __init__(self, path, taxonomic_group, dataset, df, taxonomic_groups = None, multilabel_lvl=1):
+    def __init__(self, path, rank, dataset, df, taxonomic_groups = None, multilabel_lvl=1):
         self.taxonomic_groups = taxonomic_groups
-        cuts_path = os.path.join(path, 'cuts')
-        makedirs(cuts_path)
+        self.imagefolder_path = ''
+
+        # if multilabel_lvl == 1:
+        #     cuts_path = os.path.join(path, 'cuts')
+        #     makedirs(cuts_path)
+        #     self.clean_up(path)
+        # elif multilabel_lvl == 2:
+        #     ml2_path = os.path.join(path, 'ml2')
+        #     makedirs(ml2_path)
+        #     path = ml2_path
+        #     cuts_path = os.path.join(path, 'cuts')
+        #     makedirs(cuts_path)
+
         if dataset == 'fun':
             # removes path/train, path/test and path/val
             # builds up mapping from unique identiefier to file
             # if enabled extracts circles and saves the cuts in self.cut_fun_images()
             # build imagefolders according to taxonomic rank
             # copies those folders/files according to sample ratio in path/test, path/train and path/val
-            self.clean_up(path)
-            # self.cut_fun_images(path, taxa)
+            cuts_path = self.cut_fun_images(path)
             ids_dict = self.create_ids_dict(path=path)
-            self.create_subfolders_acc_to_taxa(path=path, taxonomic_group=taxonomic_group, df=df, dataset=dataset, ids_dict=ids_dict, multilabel_lvl=multilabel_lvl)
-            self.sample(path)
+            self.imagefolder_path = self.loadcreate_image_folders(path=cuts_path, rank=rank, df=df, dataset=dataset, ids_dict=ids_dict, multilabel_lvl=multilabel_lvl)
+            self.sample(self.imagefolder_path)
         if dataset == 'zoo':
-            self.clean_up(path)
-            self.create_subfolders_acc_to_taxa(path=path, taxonomic_group=taxonomic_group, df=df, dataset=dataset, multilabel_lvl=multilabel_lvl)
-            self.sample(path)
+            self.imagefolder_path = self.loadcreate_image_folders(path=path, rank=rank, df=df, dataset=dataset, multilabel_lvl=multilabel_lvl)
+            self.sample(self.imagefolder_path)
             pass
 
 
@@ -62,46 +73,49 @@ class DataPrep:
         # self.ids_dict
         # which is a dictionary to map file unique identifier (mixture of date and name and csv) to a unique filename
 
-        print('cutting images')
+
         resize = True
         resize_w = 356
         resize_h = 356
 
         cuts_path = os.path.join(path, 'cuts')
+        if not os.path.exists(cuts_path):
+            print('cutting images')
+            makedirs(cuts_path)
 
-        # 1)create dictonary -> {mdate_skey : filename}
-        # 2)identify circles in group image, save circle_group_image and produce cuts respectivly
-        # each image contains 12 image crops of fungis
-        # these group images are uniquely identified via date of modification and sample key (skey = A, B, C, ...)
-        # batch_no is later used to get the crop
-        self.ids_dict = {}
-        # for folderName, subfolders, filenames in os.walk(path):
-        filenames = os.listdir(path)
-        for file in filenames:
-            file_no_ex = file[:-4]
-            # rule out unwanted files such as Mo013.tif (not labeled) or  Eka_9.12.17_F(2).tif (pedridish flipped)
-            if len(file_no_ex.split('_')) > 1:
-                if not ((file_no_ex[0] == 'E' and file_no_ex.split('_')[-1][-1] == ')')):
-                    # print('cutting', file)
-                    skey = file_no_ex.split('_')[-1][0]
-                    mdate = time.gmtime(os.path.getmtime(os.path.join(path, file)))
-                    dd = str(mdate[2])
-                    if len(str(mdate[1])) == 1:
-                        mm = '0' + str(mdate[1])
-                    else:
-                        mm = str(mdate[1])
-                    yy = str(mdate[0])[-2:]
-                    mdate_skey = dd + '.' + mm + '.' + yy + '_' + skey
-                    # print(file, mdate[2], mdate[1], mdate[0], skey, mdate_skey)
-                    self.ids_dict[mdate_skey] = file
+            # 1)create dictonary -> {mdate_skey : filename}
+            # 2)identify circles in group image, save circle_group_image and produce cuts respectivly
+            # each image contains 12 image crops of fungis
+            # these group images are uniquely identified via date of modification and sample key (skey = A, B, C, ...)
+            # batch_no is later used to get the crop
+            self.ids_dict = {}
+            # for folderName, subfolders, filenames in os.walk(path):
+            filenames = os.listdir(path)
+            for file in filenames:
+                file_no_ex = file[:-4]
+                # rule out unwanted files such as Mo013.tif (not labeled) or  Eka_9.12.17_F(2).tif (pedridish flipped)
+                if len(file_no_ex.split('_')) > 1:
+                    if not ((file_no_ex[0] == 'E' and file_no_ex.split('_')[-1][-1] == ')')):
+                        # print('cutting', file)
+                        skey = file_no_ex.split('_')[-1][0]
+                        mdate = time.gmtime(os.path.getmtime(os.path.join(path, file)))
+                        dd = str(mdate[2])
+                        if len(str(mdate[1])) == 1:
+                            mm = '0' + str(mdate[1])
+                        else:
+                            mm = str(mdate[1])
+                        yy = str(mdate[0])[-2:]
+                        mdate_skey = dd + '.' + mm + '.' + yy + '_' + skey
+                        # print(file, mdate[2], mdate[1], mdate[0], skey, mdate_skey)
+                        self.ids_dict[mdate_skey] = file
 
-                    ### identify petri dishes
-                    if file[-3:] == 'tif':
-                        self.cut_image(path=path, file=file, cuts_path=cuts_path, mdate_skey=mdate_skey, resize=resize, resize_w=resize_w,
-                                       resize_h=resize_h)
+                        ### identify petri dishes
+                        if file[-3:] == 'tif':
+                            self.cut_image(path=path, file=file, cuts_path=cuts_path, mdate_skey=mdate_skey, resize=resize, resize_w=resize_w,
+                                           resize_h=resize_h)
+        return cuts_path
 
-
-    def create_subfolders_acc_to_taxa(self, path, taxonomic_group, df, dataset, ids_dict=None, multilabel_lvl=1):
+    def loadcreate_image_folders(self, path, rank, df, dataset, ids_dict=None, multilabel_lvl=1):
         # dataset: fun or zoo
         # taxa: all or specific taxonomic rank
         # ids_dict is only used in fungi ds
@@ -109,76 +123,119 @@ class DataPrep:
         # create subfolder for each isotope in cuts
         # path/cuts/isotope
 
+        return_path = ''
 
-        cuts_path = os.path.join(path, 'cuts')
-
-
+        print('creating folder structure for image folder data sets')
         if dataset == 'fun':
             if multilabel_lvl == 1:
-                print('creating subfolder according to taxonomic group')
-                ### get labels, identify images and crop, save image crop and label to folder
-                for index, row in df.iterrows():
-                    # get mdate_skey (unique group image identifier) and label
-                    mdate_skey = row['Scan.date']
-                    pos = row['Pos.scan']
-                    label = row[taxonomic_group]
-                    # get file
-                    file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
-                    file = os.path.join(cuts_path, file_name)
-                    # create subfolder in cuts according to taxonomic resolution
-                    this_taxon_to_folder = os.path.join(cuts_path, str(label))
-                    makedirs(this_taxon_to_folder)
-                    # if the isomorph is classified in this taxonomic resolution, copy it to it's folder
-                    if not pd.isnull(row[taxonomic_group]):
-                        if not os.path.exists(os.path.join(this_taxon_to_folder, file_name)):
-                            shutil.copy(file, this_taxon_to_folder)
+                print('multilabel lvl 1, fungi ds')
+                # if not exists, create image folder
+                rank_path = os.path.join(path, rank)
+                if not os.path.exists(rank_path):
+                    makedirs(rank_path)
+                    # cuts_path = os.path.join(rank_path, 'cuts')
+                    # makedirs(cuts_path)
+                    ### get labels, identify images and crop, save image crop and label to folder
+                    for index, row in df.iterrows():
+                        # get mdate_skey (unique group image identifier) and label
+                        mdate_skey = row['Scan.date']
+                        pos = row['Pos.scan']
+                        label = row[rank]
+                        # get file
+                        file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
+                        file = os.path.join(path, file_name)
+                        # create subfolder in cuts according to taxonomic resolution
+                        this_taxon_to_folder = os.path.join(rank_path, str(label))
+                        makedirs(this_taxon_to_folder)
+                        # if the isomorph is classified in this taxonomic resolution, copy it to it's folder
+                        if not pd.isnull(row[rank]):
+                            if not os.path.exists(os.path.join(this_taxon_to_folder, file_name)):
+                                shutil.copy(file, this_taxon_to_folder)
+                return_path = rank_path
 
             elif multilabel_lvl == 2:
                 # get labels, identify images
                 # copy this isomorphe image to
                 # each folder of it's classified taxonomic rank
-                print('creating subfolders for multilabel')
-                for index, row in df.iterrows():
-                    # get mdate_skey (unique group image identifier) and label
-                    mdate_skey = row['Scan.date']
-                    pos = row['Pos.scan']
-                    # get file
-                    file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
-                    file_from = os.path.join(cuts_path, file_name)
+                print('multilabel lvl 2, fungi ds')
+                ml2_path = os.path.join(path, 'ml2')
+                if not os.path.exists(ml2_path):
+                    makedirs(ml2_path)
+                    for index, row in df.iterrows():
+                        # get mdate_skey (unique group image identifier) and label
+                        mdate_skey = row['Scan.date']
+                        pos = row['Pos.scan']
+                        # get file
+                        file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
+                        file_from = os.path.join(path, file_name)
 
-                    # loop over the taxonomic groups listed self.taxonomic_groups
-                    # for each taxonomic group create a subfolder with the name of the current taxon according to the
-                    # current taxonomic resolution
-                    # copy the file there
-                    for tg in self.taxonomic_groups:
-                        if not pd.isnull(row[tg]):
-                            taxon = row[tg]
-                            # create a subfolder cutspath/m_lvl, in which all the taxon folder are to be created
-                            # m_lvl_path = os.path.join(cuts_path, "m_lvl")
-                            # if not os.path.exists(m_lvl_path): makedirs(m_lvl_path)
-                            #
-                            taxon_path = os.path.join(cuts_path, str(taxon))
-                            if not os.path.exists(taxon_path): makedirs(taxon_path)
+                        # loop over the taxonomic groups listed self.taxonomic_groups
+                        # for each taxonomic group create a subfolder with the name of the current taxon according to the
+                        # current taxonomic resolution
+                        # copy the file there
+                        for tg in self.taxonomic_groups:
+                            if not pd.isnull(row[tg]):
+                                taxon = row[tg]
+                                # create a subfolder cutspath/m_lvl, in which all the taxon folder are to be created
+                                # m_lvl_path = os.path.join(cuts_path, "m_lvl")
+                                # if not os.path.exists(m_lvl_path): makedirs(m_lvl_path)
+                                #
+                                taxon_path = os.path.join(path, str(taxon))
+                                if not os.path.exists(taxon_path): makedirs(taxon_path)
 
-                            file_to = os.path.join(taxon_path, file_name)
-                            # print("copying from:  %s to:  %s" %(file_from,file_to))
-                            if not os.path.exists(file_to): shutil.copy(file_from, file_to)
+                                file_to = os.path.join(taxon_path, file_name)
+                                # print("copying from:  %s to:  %s" %(file_from,file_to))
+                                if not os.path.exists(file_to): shutil.copy(file_from, file_to)
+                return_path = ml2_path
 
         elif dataset == 'zoo':
             if multilabel_lvl == 1:
-                # get all taxons in this rank
-                taxons = df.loc[df['rank'] == taxonomic_group].taxon.unique()
-                # for each taxon
-                # copy its image folder to path\cuts\this_taxon_folder
-                for this_taxon in taxons:
-                    this_taxon_from_folder = os.path.join(path, this_taxon)
-                    this_taxon_to_folder = os.path.join(cuts_path, this_taxon)
-                    if not os.path.exists(this_taxon_to_folder):
-                        # makedirs(this_taxon_to_folder)
-                        shutil.copytree(this_taxon_from_folder, this_taxon_to_folder)
+                print('multilabel lvl 1, zooscan ds')
+                # if not exists, create image folder
+                rank_path = os.path.join(path, rank)
+                if not os.path.exists(rank_path):
+                    makedirs(rank_path)
+                    # get all taxons in this rank
+                    taxons = df.loc[df['rank'] == rank].taxon.unique()
+                    # for each taxon
+                    # copy its image folder to path\cuts\this_taxon_folder
+                    for this_taxon in taxons:
+                        this_taxon_from_folder = os.path.join(path, this_taxon)
+                        this_taxon_to_folder = os.path.join(rank_path, this_taxon)
+                        if not os.path.exists(this_taxon_to_folder):
+                            # makedirs(this_taxon_to_folder)
+                            shutil.copytree(this_taxon_from_folder, this_taxon_to_folder)
+                return_path = rank_path
 
             elif multilabel_lvl == 2:
-                pass
+                print('multilabel lvl 2, zooscan ds')
+                ml2_path = os.path.join(path, 'ml2')
+                if not os.path.exists(ml2_path):
+                    makedirs(ml2_path)
+                    for index, row in df.iterrows():
+                        file_name = row['objid'] + '.jpg'
+                        taxon_path_from = os.path.join(path, row['taxon'])
+                        file_from = os.path.join(taxon_path_from, file_name)
+
+                        # loop over the taxonomic groups listed self.taxonomic_groups
+                        # for each taxonomic group create a subfolder with the name of the current taxon according to the
+                        # current taxonomic resolution
+                        # copy the file there
+                        ranks = ast.literal_eval(row['ranks'])
+                        # !!! I could also loop over lineage directly, BUT I wouldn't know the rank or also include taxons I do not know the rank of
+                        for i, tg in ranks:
+                            if tg != '' or tg != 'no rank':
+                                # ast.literal_eval pasrses the string representation of a list and translates it into a list
+                                taxon = ast.literal_eval(row['lineage'])[i+4]
+
+                                taxon_path_to = os.path.join(ml2_path, str(taxon))
+                                if not os.path.exists(taxon_path_to): makedirs(taxon_path_to)
+
+                                file_to = os.path.join(taxon_path_to, file_name)
+                                # print("copying from:  %s to:  %s" %(file_from,file_to))
+                                if not os.path.exists(file_to): shutil.copy(file_from, file_to)
+                return_path = ml2_path
+        return return_path
 
     def sample(self, path, ratio = {'train':0.85, 'test': 0.1, 'validation': 0.05}):
         # Create directories:
@@ -189,66 +246,65 @@ class DataPrep:
         # sample images in
 
         print('sampling into directories: train, test, val')
-        # src_path = path
-        cuts_path = os.path.join(path, 'cuts')
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
         test_path = os.path.join(path, 'test')
-        # makedirs(cuts_path)
-        makedirs(train_path)
-        makedirs(val_path)
-        makedirs(test_path)
 
-        # creating train, validation and test set, 85:5:10
-        # all subdirs in cut_path without files
-        subdirs = [os.path.join(cuts_path, x) for x in os.listdir(cuts_path) if
-                   not os.path.isfile(os.path.join(cuts_path, x))]
-        subdirs_names = [x for x in os.listdir(cuts_path) if not os.path.isfile(os.path.join(cuts_path, x))]
-        # all files in subdirs
-        filenames = []
-        for subdir in subdirs:
-            files_subdir = os.listdir(subdir)
-            full_file_names = [os.path.join(subdir, f) for f in files_subdir]
-            filenames.append(full_file_names)
+        if not os.path.exists(train_path) or not os.path.exists(val_path) or not os.path.exists(test_path):
+            # makedirs(cuts_path)
+            makedirs(train_path)
+            makedirs(val_path)
+            makedirs(test_path)
 
-        # # list all files in subdirs
-        # filenames = [os.path.join(x, os.listdir(x)) for x in subdirs]
-        # # make it full path
-        filenames = [item for sublist in filenames for item in sublist]
+            # creating train, validation and test set, 85:5:10
+            # all subdirs in cut_path without files
+            subdirs = [os.path.join(path, x) for x in os.listdir(path) if
+                       not os.path.isfile(os.path.join(path, x))]
+            subdirs_names = [x for x in os.listdir(path) if not os.path.isfile(os.path.join(path, x))]
+            # all files in subdirs
+            filenames = []
+            for subdir in subdirs:
+                files_subdir = os.listdir(subdir)
+                full_file_names = [os.path.join(subdir, f) for f in files_subdir]
+                filenames.append(full_file_names)
 
-        train_images = random.sample(filenames, round(len(filenames) * .8))
-        filenames = [elem for elem in filenames if elem not in train_images]
-        val_images = random.sample(filenames, round(len(filenames) * .05))
-        filenames = [elem for elem in filenames if elem not in val_images]
-        test_images = filenames
+            # # list all files in subdirs
+            # filenames = [os.path.join(x, os.listdir(x)) for x in subdirs]
+            # # make it full path
+            filenames = [item for sublist in filenames for item in sublist]
+            train_images = random.sample(filenames, round(len(filenames) * .8))
+            filenames = [elem for elem in filenames if elem not in train_images]
+            val_images = random.sample(filenames, round(len(filenames) * .05))
+            filenames = [elem for elem in filenames if elem not in val_images]
+            test_images = filenames
 
-        makedirs(train_path)
-        makedirs(val_path)
-        makedirs(test_path)
+            makedirs(train_path)
+            makedirs(val_path)
+            makedirs(test_path)
 
-        for l in subdirs_names:
-            makedirs(os.path.join(train_path, l))
-            makedirs(os.path.join(val_path, l))
-            makedirs(os.path.join(test_path, l))
+            for l in subdirs_names:
+                makedirs(os.path.join(train_path, l))
+                makedirs(os.path.join(val_path, l))
+                makedirs(os.path.join(test_path, l))
 
-        # Copy files to corresponding directory
-        for file in train_images:
-            split_list = file.split('/')
-            label = split_list[-2]
-            to_path = os.path.join(train_path, label)
-            shutil.copy(file, to_path)
+            # Copy files to corresponding directory
+            for file in train_images:
+                split_list = file.split('/')
+                label = split_list[-2]
+                to_path = os.path.join(train_path, label)
+                shutil.copy(file, to_path)
 
-        for file in val_images:
-            split_list = file.split('/')
-            label = split_list[-2]
-            to_path = os.path.join(val_path, label)
-            shutil.copy(file, to_path)
+            for file in val_images:
+                split_list = file.split('/')
+                label = split_list[-2]
+                to_path = os.path.join(val_path, label)
+                shutil.copy(file, to_path)
 
-        for file in test_images:
-            split_list = file.split('/')
-            label = split_list[-2]
-            to_path = os.path.join(test_path, label)
-            shutil.copy(file, to_path)
+            for file in test_images:
+                split_list = file.split('/')
+                label = split_list[-2]
+                to_path = os.path.join(test_path, label)
+                shutil.copy(file, to_path)
 
     def render_as_image(self, a):
         img = a.asnumpy() # convert to numpy array
