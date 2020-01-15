@@ -145,7 +145,7 @@ for (i, taxa) in enumerate(taxonomic_groups):
     data_handler = DataHandler(path=path,
                                batch_size = batch_size,
                                num_workers=num_workers,
-                               transform = True)
+                               augment= True)
     classes = data_handler.classes
 
     # plot class distribution

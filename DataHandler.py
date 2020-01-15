@@ -5,7 +5,7 @@ from mxnet.gluon.data.vision import transforms
 from mxnet import gluon, image
 
 class DataHandler:
-    def __init__(self, path, batch_size , num_workers, transform):
+    def __init__(self, path, batch_size, num_workers, augment):
         self.train_data = []
         self.test_data = []
         self.validate_data = []
@@ -15,9 +15,9 @@ class DataHandler:
         # elif set == "minc2500":
         #     self._load_minc2500_ids(path, batch_size , num_workers, transform)
         # elif set == "fungi":
-        self._load_ids(path, batch_size , num_workers, transform)
+        self._load_ids(path, batch_size, num_workers, augment)
 
-    def _load_ids(self, path, batch_size , num_workers, transform):
+    def _load_ids(self, path, batch_size , num_workers, augment):
 
         ### load imagedataset (ids)
         train_path = os.path.join(path, 'train')
@@ -44,27 +44,33 @@ class DataHandler:
             self.samples_per_class_normalized[subdir] = len(os.listdir(os.path.join(train_path, subdir)))
 
         # split into train, vla, test
-        if transform:
+        if augment == 'transform':
             self.train_data = gluon.data.DataLoader(
                 train_ids.transform_first(self.transform()),
                 batch_size=batch_size, shuffle=True, num_workers=num_workers)
-
             self.val_data = gluon.data.DataLoader(
                 val_ids.transform_first(self.transform(mode='test')),
                 batch_size=batch_size, shuffle=False, num_workers=num_workers)
-
             self.test_data = gluon.data.DataLoader(
                 test_ids.transform_first(self.transform(mode='test')),
+                batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        elif augment == 'resize':
+            self.train_data = gluon.data.DataLoader(
+                train_ids.transform_first(self.resize()),
+                batch_size=batch_size, shuffle=True, num_workers=num_workers)
+            self.val_data = gluon.data.DataLoader(
+                val_ids.transform_first(self.resize()),
+                batch_size=batch_size, shuffle=False, num_workers=num_workers)
+            self.test_data = gluon.data.DataLoader(
+                test_ids.transform_first(self.resize()),
                 batch_size=batch_size, shuffle=False, num_workers=num_workers)
         else:
             self.train_data = gluon.data.DataLoader(
                 train_ids,
                 batch_size=batch_size, shuffle=True, num_workers=num_workers)
-
             self.val_data = gluon.data.DataLoader(
                 val_ids,
                 batch_size=batch_size, shuffle=False, num_workers=num_workers)
-
             self.test_data = gluon.data.DataLoader(
                 test_ids,
                 batch_size=batch_size, shuffle=False, num_workers=num_workers)
@@ -112,6 +118,16 @@ class DataHandler:
                                              saturation=jitter_param),
                 transforms.RandomLighting(lighting_param)
             ])
+        return transform
+
+    def resize(self):
+        transform = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            # transforms.Resize(256),
+            # transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
         return transform
 
     def augment_ids(self):

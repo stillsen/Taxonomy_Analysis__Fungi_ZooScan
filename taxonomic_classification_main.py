@@ -47,7 +47,7 @@ if dataset == 'fun':
     path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
     missing_values = ['', 'unknown', 'unclassified']
     taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-    transform = True
+    augment = 'transform'
     # --------------------
 
     csv_path = os.path.join(path, 'im_merged.csv')
@@ -71,17 +71,17 @@ elif dataset == 'zoo':
                           'ephyra']
     # taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     taxonomic_groups = ['phylum', 'class', 'subclass', 'order', 'suborder', 'infraorder', 'family', 'genus', 'species']
-    transform = False
+    augment = 'resize'
     # --------------------
 
     csv_path = os.path.join(path, 'zoo_df.csv')
     df = pd.read_csv(csv_path, na_values=missing_values)
 
 # PARAMETERS Training
-epochs = 3
+epochs = 5
 num_workers = cpu_count()
 num_gpus = 1
-per_device_batch_size = 100
+per_device_batch_size = 1
 batch_size = per_device_batch_size * max(num_gpus, 1)
 
 #PARAMETERS Model
@@ -116,7 +116,7 @@ if multilabel_lvl == 1:
         data_handler = DataHandler(path=data_prepper.imagefolder_path,
                                    batch_size=batch_size,
                                    num_workers=num_workers,
-                                   transform=transform)
+                                   augment=augment)
         classes = data_handler.classes
 
         print('loading model')
@@ -130,18 +130,18 @@ if multilabel_lvl == 1:
         model_loaded = False
         param_file = ''
         e = -1
-        for file_name in os.listdir(path):
+        for file_name in os.listdir(data_prepper.imagefolder_path):
             if re.match('%s-%s-'%(dataset, taxa), file_name):
                 if int(file_name.split('-')[-1][0]) > e:
                     e = int(file_name.split('-')[-1][0])
-                    param_file = os.path.join(path, file_name)
+                    param_file = os.path.join(data_prepper.imagefolder_path, file_name)
                 model_loaded = True
         if not model_loaded: # train
             print('training model for %s-%s' % (dataset, taxa))
             model.train(train_iter=data_handler.train_data,
                         val_iter=data_handler.test_data,
                         epochs=epochs,
-                        path=path,
+                        path=data_prepper.imagefolder_path,
                         dataset=dataset,
                         taxonomic_group=taxa)
         else:
@@ -161,7 +161,7 @@ if multilabel_lvl == 1:
                         title=title,
                         axis=ax)
         # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
-
+        #
         # if i < 3:
         #     ax[0][i].xaxis.set_visible(False)
         #     sns.barplot(x=x, y=y, color="b", ax=ax[0][i])
@@ -195,7 +195,7 @@ elif multilabel_lvl == 2:
     data_handler = DataHandler(path=data_prepper.imagefolder_path,
                                batch_size=batch_size,
                                num_workers=num_workers,
-                               transform=transform)
+                               augment=augment)
     classes = data_handler.classes
 
     print('preparing model class')

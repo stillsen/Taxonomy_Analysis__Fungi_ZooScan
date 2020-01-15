@@ -11,7 +11,7 @@ from gluoncv.model_zoo import get_model
 class ModelHandler:
     def __init__(self,
                  classes,
-                 epochs = 10,
+                 # epochs = 10,
                  learning_rate = 0.001,
                  batch_size = 1,
                  momentum = 0.9,
@@ -26,7 +26,7 @@ class ModelHandler:
         # Multi-label lvl 1: Binary Relevance Approach
         # Multi-label lvl 2:  Multi-Label/Multi/Class with sigmoid activation function and binary cross entropy loss
 
-        self.epochs = epochs
+        # self.epochs = epochs
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.momentum = momentum
@@ -52,7 +52,8 @@ class ModelHandler:
         finetune_net = None
         if pretrained:
             if multi_label_lvl == 1:
-                pretrained_net = get_model(model_name, pretrained=True)
+                # pretrained_net = get_model(model_name, pretrained=True)
+                pretrained_net = get_model(model_name, classes=classes, pretrained=True)
                 finetune_net = get_model(model_name, classes=classes)
 
                 finetune_net.features = pretrained_net.features
@@ -85,7 +86,8 @@ class ModelHandler:
                 #         pretrained_features,
                 #         new_tail
                 #     )
-                pretrained_net = get_model(model_name, pretrained=True)
+                # pretrained_net = get_model(model_name, pretrained=True)
+                pretrained_net = get_model(model_name, classes=classes, pretrained=True)
                 finetune_net = get_model(model_name, classes=classes)
 
                 finetune_net.features = pretrained_net.features
@@ -146,7 +148,7 @@ class ModelHandler:
             metric.reset()
 
             for i, batch in enumerate(train_iter):
-                print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
+                # print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
                 # the model zoo models expect normalized images
                 data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)

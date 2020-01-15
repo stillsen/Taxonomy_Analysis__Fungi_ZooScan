@@ -180,7 +180,7 @@ class DataPrep:
                                 # m_lvl_path = os.path.join(cuts_path, "m_lvl")
                                 # if not os.path.exists(m_lvl_path): makedirs(m_lvl_path)
                                 #
-                                taxon_path = os.path.join(path, str(taxon))
+                                taxon_path = os.path.join(ml2_path, str(taxon))
                                 if not os.path.exists(taxon_path): makedirs(taxon_path)
 
                                 file_to = os.path.join(taxon_path, file_name)
