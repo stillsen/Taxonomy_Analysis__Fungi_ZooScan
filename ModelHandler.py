@@ -12,13 +12,13 @@ class ModelHandler:
     def __init__(self,
                  classes,
                  # epochs = 10,
+                 metrics,
                  learning_rate = 0.001,
                  batch_size = 1,
                  momentum = 0.9,
                  wd=0.0001,
                  num_gpus=1,
                  num_workers=1,
-                 metrics = 'Accuracy',
                  model_name = 'densenet169',
                  pretrained = True,
                  multi_label_lvl = 1,
@@ -52,8 +52,8 @@ class ModelHandler:
         finetune_net = None
         if pretrained:
             if multi_label_lvl == 1:
-                # pretrained_net = get_model(model_name, pretrained=True)
-                pretrained_net = get_model(model_name, classes=classes, pretrained=True)
+                pretrained_net = get_model(model_name, pretrained=True)
+                # pretrained_net = get_model(model_name, classes=classes, pretrained=True)
                 finetune_net = get_model(model_name, classes=classes)
 
                 finetune_net.features = pretrained_net.features
@@ -86,8 +86,8 @@ class ModelHandler:
                 #         pretrained_features,
                 #         new_tail
                 #     )
-                # pretrained_net = get_model(model_name, pretrained=True)
-                pretrained_net = get_model(model_name, classes=classes, pretrained=True)
+                pretrained_net = get_model(model_name, pretrained=True)
+                # pretrained_net = get_model(model_name, classes=classes, pretrained=True)
                 finetune_net = get_model(model_name, classes=classes)
 
                 finetune_net.features = pretrained_net.features
@@ -100,6 +100,7 @@ class ModelHandler:
                 finetune_net.collect_params().reset_ctx(ctx)
                 finetune_net.hybridize()
 
+                # self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
                 self.loss_fn = gluon.loss.SigmoidBinaryCrossEntropyLoss()
 
         return finetune_net
@@ -109,8 +110,8 @@ class ModelHandler:
         return ', '.join(['%s=%f'%(names, accs) ])
         # return ', '.join(['%s=%f'%(name, acc) for name, acc in zip(names, accs)])
 
-    def evaluate(self, net, val_data, ctx):
-        metric = mx.metric.Accuracy()
+    def evaluate(self, net, val_data, ctx, metric):
+        # metric = mx.metric.Accuracy()
         for i, batch in enumerate(val_data):
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
             label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
@@ -139,7 +140,7 @@ class ModelHandler:
         print('batch num: %d'%num_batch)
         best_acc = 0
 
-        val_names, val_accs = self.evaluate(net, val_iter, ctx)
+        val_names, val_accs = self.evaluate(net, val_iter, ctx, metric=self.metrics)
         print('[Initial] validation: %s'%(self.metric_str(val_names, val_accs)))
         for epoch in range(epochs):
             tic = time.time()
@@ -148,12 +149,21 @@ class ModelHandler:
             metric.reset()
 
             for i, batch in enumerate(train_iter):
-                # print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
+                print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
                 # the model zoo models expect normalized images
                 data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
                 with ag.record():
                     outputs = [net(X) for X in data]
+                    # ############ DEBUG #############
+                    # print(label)
+                    # print(outputs)
+                    # z = zip(outputs, label)
+                    # print("yhat, y")
+                    # for yhat, y in z:
+                    #     print("%s, %s" %(yhat, y))
+                    # loss = [loss_fn(yhat, y) for yhat, y in z]
+                    # ############ DEBUG ##############
                     loss = [loss_fn(yhat, y) for yhat, y in zip(outputs, label)]
                     for l in loss:
                         l.backward()
@@ -162,14 +172,14 @@ class ModelHandler:
                 metric.update(label, outputs)
 
                 if log_interval and not (i+1)%log_interval:
-                    names, accs = metric.get()
+                    name, value = metric.get()
                     # print('[Epoch %d Batch %d] speed: %f samples/s, training: %s'%(
-                    #                epoch, i, batch_size/(time.time()-btic), metric_str(names, accs)))
+                    #                epoch, i, batch_size/(time.time()-btic), metric_str(name, value)))
                 btic = time.time()
 
-            names, accs = metric.get()
+            name, value = metric.get()
             metric.reset()
-            print('[Epoch %d] training: %s'%(epoch, self.metric_str(names, accs)))
+            print('[Epoch %d] training: %s'%(epoch, self.metric_str(name, value)))
             print('[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
             val_names, val_accs = self.evaluate(net, val_iter, ctx)
             print('[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_accs)))

@@ -3,6 +3,7 @@ import pandas as pd
 from multiprocessing import cpu_count
 from matplotlib import pyplot as plt
 import mxnet as mx
+from metrics import F1
 
 # load custom modules
 from DataHandler import DataHandler
@@ -82,13 +83,15 @@ epochs = 5
 num_workers = cpu_count()
 num_gpus = 1
 per_device_batch_size = 1
-batch_size = per_device_batch_size * max(num_gpus, 1)
+# batch_size = per_device_batch_size * max(num_gpus, 1)
+batch_size = per_device_batch_size * num_workers
+# batch_size = 2006
 
 #PARAMETERS Model
 metric = mx.metric.Accuracy()
-# metric = mx.metric.F1()
+# metric = F1(average="micro")
 # binary relevance approach -> ignores possible correlations
-multilabel_lvl = 1
+multilabel_lvl = 2
 # multilabel/-class approach -> sigmoid in last layer
 # multilabel_lvl = 2
 
@@ -118,6 +121,7 @@ if multilabel_lvl == 1:
                                    num_workers=num_workers,
                                    augment=augment)
         classes = data_handler.classes
+        print('numer of classes: %s' % classes)
 
         print('loading model')
         model = ModelHandler(classes=classes,
@@ -176,7 +180,7 @@ if multilabel_lvl == 1:
             print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
             print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
 
-        val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx)
+        val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx, metric=metric)
         print('%s: %s' % (taxa, model.metric_str(val_names, val_accs)))
 
 
@@ -197,6 +201,7 @@ elif multilabel_lvl == 2:
                                num_workers=num_workers,
                                augment=augment)
     classes = data_handler.classes
+    print('numer of classes: %s'%classes)
 
     print('preparing model class')
     model = ModelHandler(classes=classes,
@@ -243,7 +248,7 @@ elif multilabel_lvl == 2:
         print("not resampled --- %s: %d"%(cl,data_handler.samples_per_class[cl]))
         print("    resampled --- %s: %d" % (cl, data_handler.samples_per_class_normalized[cl]))
 
-    val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx)
+    val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx, metric=metric)
     print(' %s' % (model.metric_str(val_names, val_accs)))
 
 
