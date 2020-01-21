@@ -146,7 +146,7 @@ class ModelHandler:
             metric.reset()
 
             for i, batch in enumerate(train_iter):
-                print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
+                # print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
                 # the model zoo models expect normalized images
                 data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)

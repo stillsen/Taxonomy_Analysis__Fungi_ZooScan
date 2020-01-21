@@ -81,7 +81,7 @@ elif dataset == 'zoo':
 epochs = 3
 num_workers = cpu_count()
 num_gpus = 1
-per_device_batch_size = 100
+per_device_batch_size = 5
 batch_size = per_device_batch_size * max(num_gpus, 1)
 
 #PARAMETERS Model
@@ -130,18 +130,18 @@ if multilabel_lvl == 1:
         model_loaded = False
         param_file = ''
         e = -1
-        for file_name in os.listdir(path):
+        for file_name in os.listdir(data_prepper.imagefolder_path):
             if re.match('%s-%s-'%(dataset, taxa), file_name):
                 if int(file_name.split('-')[-1][0]) > e:
                     e = int(file_name.split('-')[-1][0])
-                    param_file = os.path.join(path, file_name)
+                    param_file = os.path.join(data_prepper.imagefolder_path, file_name)
                 model_loaded = True
         if not model_loaded: # train
             print('training model for %s-%s' % (dataset, taxa))
             model.train(train_iter=data_handler.train_data,
                         val_iter=data_handler.test_data,
                         epochs=epochs,
-                        path=path,
+                        path=data_prepper.imagefolder_path,
                         dataset=dataset,
                         taxonomic_group=taxa)
         else:
