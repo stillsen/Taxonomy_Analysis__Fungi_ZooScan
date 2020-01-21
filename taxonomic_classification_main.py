@@ -3,6 +3,7 @@ import pandas as pd
 from multiprocessing import cpu_count
 from matplotlib import pyplot as plt
 import mxnet as mx
+from metrics import F1
 
 # load custom modules
 from DataHandler import DataHandler
@@ -47,7 +48,7 @@ if dataset == 'fun':
     path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
     missing_values = ['', 'unknown', 'unclassified']
     taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-    transform = True
+    augment = 'transform'
     # --------------------
 
     csv_path = os.path.join(path, 'im_merged.csv')
@@ -71,24 +72,25 @@ elif dataset == 'zoo':
                           'ephyra']
     # taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     taxonomic_groups = ['phylum', 'class', 'subclass', 'order', 'suborder', 'infraorder', 'family', 'genus', 'species']
-    transform = False
+    augment = 'resize'
     # --------------------
 
     csv_path = os.path.join(path, 'zoo_df.csv')
     df = pd.read_csv(csv_path, na_values=missing_values)
 
 # PARAMETERS Training
-epochs = 3
+epochs = 5
 num_workers = cpu_count()
 num_gpus = 1
+# batch_size = 2006
 per_device_batch_size = 5
 batch_size = per_device_batch_size * max(num_gpus, 1)
 
 #PARAMETERS Model
 metric = mx.metric.Accuracy()
-# metric = mx.metric.F1()
+# metric = F1(average="micro")
 # binary relevance approach -> ignores possible correlations
-multilabel_lvl = 1
+multilabel_lvl = 2
 # multilabel/-class approach -> sigmoid in last layer
 # multilabel_lvl = 2
 
@@ -116,8 +118,9 @@ if multilabel_lvl == 1:
         data_handler = DataHandler(path=data_prepper.imagefolder_path,
                                    batch_size=batch_size,
                                    num_workers=num_workers,
-                                   transform=transform)
+                                   augment=augment)
         classes = data_handler.classes
+        print('numer of classes: %s' % classes)
 
         print('loading model')
         model = ModelHandler(classes=classes,
@@ -161,7 +164,7 @@ if multilabel_lvl == 1:
                         title=title,
                         axis=ax)
         # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
-
+        #
         # if i < 3:
         #     ax[0][i].xaxis.set_visible(False)
         #     sns.barplot(x=x, y=y, color="b", ax=ax[0][i])
@@ -176,7 +179,7 @@ if multilabel_lvl == 1:
             print("not resampled %s --- %s: %d"%(taxa,cl,data_handler.samples_per_class[cl]))
             print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
 
-        val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx)
+        val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx, metric=metric)
         print('%s: %s' % (taxa, model.metric_str(val_names, val_accs)))
 
 
@@ -195,8 +198,9 @@ elif multilabel_lvl == 2:
     data_handler = DataHandler(path=data_prepper.imagefolder_path,
                                batch_size=batch_size,
                                num_workers=num_workers,
-                               transform=transform)
+                               augment=augment)
     classes = data_handler.classes
+    print('numer of classes: %s'%classes)
 
     print('preparing model class')
     model = ModelHandler(classes=classes,
@@ -243,7 +247,7 @@ elif multilabel_lvl == 2:
         print("not resampled --- %s: %d"%(cl,data_handler.samples_per_class[cl]))
         print("    resampled --- %s: %d" % (cl, data_handler.samples_per_class_normalized[cl]))
 
-    val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx)
+    val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx, metric=metric)
     print(' %s' % (model.metric_str(val_names, val_accs)))
 
 

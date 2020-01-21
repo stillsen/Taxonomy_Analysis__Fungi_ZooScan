@@ -251,11 +251,6 @@ class DataPrep:
         test_path = os.path.join(path, 'test')
 
         if not os.path.exists(train_path) or not os.path.exists(val_path) or not os.path.exists(test_path):
-            # makedirs(cuts_path)
-            makedirs(train_path)
-            makedirs(val_path)
-            makedirs(test_path)
-
             # creating train, validation and test set, 85:5:10
             # all subdirs in cut_path without files
             subdirs = [os.path.join(path, x) for x in os.listdir(path) if
@@ -267,6 +262,7 @@ class DataPrep:
                 files_subdir = os.listdir(subdir)
                 full_file_names = [os.path.join(subdir, f) for f in files_subdir]
                 filenames.append(full_file_names)
+
 
             # # list all files in subdirs
             # filenames = [os.path.join(x, os.listdir(x)) for x in subdirs]
