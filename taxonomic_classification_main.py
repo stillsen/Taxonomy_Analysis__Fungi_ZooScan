@@ -83,7 +83,7 @@ epochs = 5
 num_workers = cpu_count()
 num_gpus = 1
 # batch_size = 2006
-per_device_batch_size = 5
+per_device_batch_size = 1
 batch_size = per_device_batch_size * max(num_gpus, 1)
 
 #PARAMETERS Model

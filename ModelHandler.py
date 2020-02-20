@@ -4,6 +4,7 @@ from mxnet import gluon, init
 from mxnet import autograd as ag
 from mxnet.gluon import nn
 from gluoncv.model_zoo import get_model
+from MyLossFn import CategoricalLoss
 
 
 
@@ -101,6 +102,7 @@ class ModelHandler:
                 finetune_net.hybridize()
 
                 # self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+                # self.loss_fn = CategoricalLoss()
                 self.loss_fn = gluon.loss.SigmoidBinaryCrossEntropyLoss()
 
         return finetune_net
