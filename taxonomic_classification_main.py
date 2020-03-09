@@ -83,12 +83,12 @@ epochs = 5
 num_workers = cpu_count()
 num_gpus = 1
 # batch_size = 2006
-per_device_batch_size = 1
+per_device_batch_size = 50
 batch_size = per_device_batch_size * max(num_gpus, 1)
 
 #PARAMETERS Model
-metric = mx.metric.Accuracy()
-# metric = F1(average="micro")
+# metric = mx.metric.Accuracy()
+metric = F1(average="micro")
 # binary relevance approach -> ignores possible correlations
 multilabel_lvl = 2
 # multilabel/-class approach -> sigmoid in last layer
