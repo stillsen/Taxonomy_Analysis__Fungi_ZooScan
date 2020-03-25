@@ -4,6 +4,8 @@ from mxnet import gluon, init
 from mxnet import autograd as ag
 from mxnet.gluon import nn
 from gluoncv.model_zoo import get_model
+from gluoncv.utils import makedirs
+
 
 
 
@@ -92,6 +94,7 @@ class ModelHandler:
 
                 finetune_net.features = pretrained_net.features
                 finetune_net.output = nn.Dense(classes, activation='sigmoid')
+                # finetune_net.output = nn.Dense(classes)
                 finetune_net.output.initialize(init.Xavier(), ctx=ctx)
                 # The model parameters in output will be updated using a learning rate ten
                 # times greater
@@ -121,7 +124,7 @@ class ModelHandler:
         return metric.get()
 
 
-    def train(self, train_iter, val_iter, epochs, path, dataset, taxonomic_group ='', log_interval = 10):
+    def train(self, train_iter, val_iter, epochs, param_folder_path, param_file_name, log_interval = 10):
         net = self.net
         ctx = self.ctx
         metric = self.metrics
@@ -137,11 +140,11 @@ class ModelHandler:
 
         num_batch = len(train_iter)
         # num_batch = 1
-        print('batch num: %d'%num_batch)
+        print('\tbatch num: %d'%num_batch)
         best_acc = 0
 
         val_names, val_accs = self.evaluate(net, val_iter, ctx, metric=self.metrics)
-        print('[Initial] validation: %s'%(self.metric_str(val_names, val_accs)))
+        print('\t[Initial] validation: %s'%(self.metric_str(val_names, val_accs)))
         for epoch in range(epochs):
             tic = time.time()
             btic = time.time()
@@ -164,7 +167,10 @@ class ModelHandler:
                     #     print("%s, %s" %(yhat, y))
                     # loss = [loss_fn(yhat, y) for yhat, y in z]
                     # ############ DEBUG ##############
-                    loss = [loss_fn(yhat, y) for yhat, y in zip(outputs, label)]
+                    loss=[]
+                    for yhat, y in zip(outputs, label):
+                        loss = [*loss, loss_fn(yhat, y)]
+                    # loss = [loss_fn(yhat, y) for yhat, y in zip(outputs, label)]
                     for l in loss:
                         l.backward()
                 trainer.step(batch_size)
@@ -179,18 +185,19 @@ class ModelHandler:
 
             name, value = metric.get()
             metric.reset()
-            print('[Epoch %d] training: %s'%(epoch, self.metric_str(name, value)))
-            print('[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
-            val_names, val_accs = self.evaluate(net, val_iter, ctx)
-            print('[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_accs)))
+            print('\t[Epoch %d] training: %s'%(epoch, self.metric_str(name, value)))
+            print('\t[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
+            val_names, val_accs = self.evaluate(net, val_iter, ctx, self.metrics)
+            print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_accs)))
             train_loss /= num_batch
 
-
             if val_accs > best_acc:
+                print('\tBest validation acc found. Checkpointing...')
+                # new best score
                 best_acc = val_accs
-                print('Best validation acc found. Checkpointing...')
-                if self.multi_label_lvl == 1:
-                    net.save_parameters(os.path.join(path, '%s-%s-%d' % (dataset, taxonomic_group, epoch)))
-                elif self.multi_label_lvl == 2:
-                    net.save_parameters(os.path.join(path, '%s-m_lvl_2-%d' % (dataset, epoch)))
+                # save parameter file
+                abs_path_param_file_name = os.path.join(param_folder_path, param_file_name)
+                print('\tsaving in %s' % (abs_path_param_file_name))
+                net.save_parameters(abs_path_param_file_name)
+
         return net

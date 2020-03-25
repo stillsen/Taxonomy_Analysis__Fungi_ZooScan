@@ -43,7 +43,7 @@ class DataPrep:
 
     def create_ids_dict(self, path):
         # create dictonary -> {mdate_skey : filename}
-        print('creating unique file mapping')
+        print('\tcreating unique file mapping')
         ids_dict = {}
         filenames = os.listdir(path)
         for file in filenames:
@@ -80,7 +80,7 @@ class DataPrep:
 
         cuts_path = os.path.join(path, 'cuts')
         if not os.path.exists(cuts_path):
-            print('cutting images')
+            print('\tcutting images')
             makedirs(cuts_path)
 
             # 1)create dictonary -> {mdate_skey : filename}
@@ -125,10 +125,10 @@ class DataPrep:
 
         return_path = ''
 
-        print('creating folder structure for image folder data sets')
+        print('\tcreating folder structure for image folder data sets')
         if dataset == 'fun':
             if multilabel_lvl == 1:
-                print('multilabel lvl 1, fungi ds')
+                print('\tmultilabel lvl 1, fungi ds')
                 # if not exists, create image folder
                 rank_path = os.path.join(path, rank)
                 if not os.path.exists(rank_path):
@@ -157,7 +157,7 @@ class DataPrep:
                 # get labels, identify images
                 # copy this isomorphe image to
                 # each folder of it's classified taxonomic rank
-                print('multilabel lvl 2, fungi ds')
+                print('\tmultilabel lvl 2, fungi ds')
                 ml2_path = os.path.join(path, 'ml2')
                 if not os.path.exists(ml2_path):
                     makedirs(ml2_path)
@@ -190,7 +190,7 @@ class DataPrep:
 
         elif dataset == 'zoo':
             if multilabel_lvl == 1:
-                print('multilabel lvl 1, zooscan ds')
+                print('\tmultilabel lvl 1, zooscan ds')
                 # if not exists, create image folder
                 rank_path = os.path.join(path, rank)
                 if not os.path.exists(rank_path):
@@ -208,7 +208,7 @@ class DataPrep:
                 return_path = rank_path
 
             elif multilabel_lvl == 2:
-                print('multilabel lvl 2, zooscan ds')
+                print('\tmultilabel lvl 2, zooscan ds')
                 ml2_path = os.path.join(path, 'ml2')
                 if not os.path.exists(ml2_path):
                     makedirs(ml2_path)
@@ -245,7 +245,7 @@ class DataPrep:
         # path/cuts/val/
         # sample images in
 
-        print('sampling into directories: train, test, val')
+        print('\tsampling into directories: train, test, val')
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
         test_path = os.path.join(path, 'test')
@@ -417,7 +417,7 @@ class DataPrep:
         # path/train
         # path/val
         # path/test
-        print('cleaning directories')
+        print('\tcleaning directories')
         cuts_path = os.path.join(path, 'cuts')
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
