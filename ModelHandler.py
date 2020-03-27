@@ -5,6 +5,7 @@ from mxnet import autograd as ag
 from mxnet.gluon import nn
 from gluoncv.model_zoo import get_model
 from gluoncv.utils import makedirs
+import pandas as pd
 
 
 
@@ -123,9 +124,26 @@ class ModelHandler:
 
         return metric.get()
 
+    def _self_all(self, ext_storage_path, param_file_name, app_file_name, net_list, score_list, app):
+        for i, net in net_list:
+            param_file_name = param_file_name.split('.')[0]+'_e'+str(i)+'.param'
+            abs_path_param_file_name = os.path.join(ext_storage_path, param_file_name)
+            net.save_parameters(abs_path_param_file_name)
 
-    def train(self, train_iter, val_iter, epochs, param_folder_path, param_file_name, log_interval = 10):
+        app_file_name = app_file_name.split('.')[0] + '__best_model.txt'
+        abs_path_app_file_name = os.path.join(ext_storage_path, app_file_name)
+        app_file = open(abs_path_app_file_name, "w+")
+        app_file.write(app)
+        app_file.close()
+
+        csv_file_name = app_file_name.split('.')[0] + '.csv'
+        abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
+        df = pd.DataFrame(score_list, columns=['scores'])
+        df.to_csv(abs_path_csv_file_name)
+
+    def train(self, train_iter, val_iter, epochs, param_folder_path, param_file_name, app_file_name, save_all=False, ext_storage_path='', log_interval = 10):
         net = self.net
+        best_net = net
         ctx = self.ctx
         metric = self.metrics
         lr = self.learning_rate
@@ -133,6 +151,10 @@ class ModelHandler:
         wd = self.wd
         batch_size = self.batch_size
         loss_fn = self.loss_fn
+        # variables for external storage
+        net_list = []
+        score_list = []
+        app = ''
 
         if isinstance(ctx, mx.Context):
             ctx = [ctx]
@@ -143,6 +165,7 @@ class ModelHandler:
         print('\tbatch num: %d'%num_batch)
         best_acc = 0
 
+        print('\tComputing initial validation score...')
         val_names, val_accs = self.evaluate(net, val_iter, ctx, metric=self.metrics)
         print('\t[Initial] validation: %s'%(self.metric_str(val_names, val_accs)))
         for epoch in range(epochs):
@@ -192,12 +215,34 @@ class ModelHandler:
             train_loss /= num_batch
 
             if val_accs > best_acc:
-                print('\tBest validation acc found. Checkpointing...')
+                print('\tBest validation %s found. Checkpointing...' %self.metric_str(name, val_accs))
                 # new best score
                 best_acc = val_accs
+                best_net = net
                 # save parameter file
                 abs_path_param_file_name = os.path.join(param_folder_path, param_file_name)
+                abs_path_app_file_name = os.path.join(param_folder_path, app_file_name)
                 print('\tsaving in %s' % (abs_path_param_file_name))
                 net.save_parameters(abs_path_param_file_name)
+                print('\tappendix in %s' % (abs_path_app_file_name))
+                app_file = open(abs_path_app_file_name, "w+")
+                app_file.write("metric: %s"%(self.metric_str(name, val_accs)))
+                app_file.close()
+                if save_all:
+                    app = 'epoch: %i, score: %f' % (epoch, best_acc)
 
-        return net
+            if save_all:
+                net_list.append(net)
+                score_list.append(val_accs)
+
+
+        if save_all:
+            # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
+            self._self_all(ext_storage_path=ext_storage_path,
+                           param_file_name=param_file_name,
+                           app_file_name=app_file_name,
+                           net_list=net_list,
+                           score_list=score_list,
+                           app=app)
+
+        return best_net
