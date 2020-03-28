@@ -70,32 +70,12 @@ class ModelHandler:
 
                 self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
-            if multi_label_lvl == 2:
-                # pretrained_net = get_model(model_name, pretrained=True)
-                # finetune_net = gluon.nn.HybridSequential()
-                # with new_net.name_scope():
-                #
-                #     pretrained_features = alexnet.features
-                #
-                #     new_tail = gluon.nn.HybridSequential()
-                #     new_tail.add(
-                #         gluon.nn.Dense(100),
-                #         gluon.nn.Dropout(0.5),
-                #         gluon.nn.Dense(12)
-                #     )
-                #     new_tail.initialize()
-                #
-                #     new_net.add(
-                #         pretrained_features,
-                #         new_tail
-                #     )
+            if multi_label_lvl == 2: # rn the same ml2 uses the same  loss and activation as ml1, bc classes not independent
                 pretrained_net = get_model(model_name, pretrained=True)
-                # pretrained_net = get_model(model_name, classes=classes, pretrained=True)
                 finetune_net = get_model(model_name, classes=classes)
 
                 finetune_net.features = pretrained_net.features
-                finetune_net.output = nn.Dense(classes, activation='sigmoid')
-                # finetune_net.output = nn.Dense(classes)
+                # finetune_net.output = nn.Dense(classes, activation='sigmoid')
                 finetune_net.output.initialize(init.Xavier(), ctx=ctx)
                 # The model parameters in output will be updated using a learning rate ten
                 # times greater
@@ -104,8 +84,8 @@ class ModelHandler:
                 finetune_net.collect_params().reset_ctx(ctx)
                 finetune_net.hybridize()
 
-                # self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
-                self.loss_fn = gluon.loss.SigmoidBinaryCrossEntropyLoss()
+                self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+                # self.loss_fn = gluon.loss.SigmoidBinaryCrossEntropyLoss()
 
         return finetune_net
 
@@ -124,10 +104,11 @@ class ModelHandler:
 
         return metric.get()
 
-    def _self_all(self, ext_storage_path, param_file_name, app_file_name, net_list, score_list, app):
-        for i, net in net_list:
-            param_file_name = param_file_name.split('.')[0]+'_e'+str(i)+'.param'
-            abs_path_param_file_name = os.path.join(ext_storage_path, param_file_name)
+    def _save_all(self, ext_storage_path, param_file_name, app_file_name, net_list, score_list, app):
+
+        for i, net in enumerate(net_list):
+            e_param_file_name = param_file_name.split('.')[0]+'_e'+str(i)+'.param'
+            abs_path_param_file_name = os.path.join(ext_storage_path, e_param_file_name)
             net.save_parameters(abs_path_param_file_name)
 
         app_file_name = app_file_name.split('.')[0] + '__best_model.txt'
@@ -230,7 +211,6 @@ class ModelHandler:
                 app_file.close()
                 if save_all:
                     app = 'epoch: %i, score: %f' % (epoch, best_acc)
-
             if save_all:
                 net_list.append(net)
                 score_list.append(val_accs)
@@ -238,7 +218,7 @@ class ModelHandler:
 
         if save_all:
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
-            self._self_all(ext_storage_path=ext_storage_path,
+            self._save_all(ext_storage_path=ext_storage_path,
                            param_file_name=param_file_name,
                            app_file_name=app_file_name,
                            net_list=net_list,

@@ -33,7 +33,7 @@ def plot_classification_acc(x, y, colors, title, axis=None):
     # plt.tight_layout()
 
 
-def load_or_train_model(model, dataset, path, param_folder_name, mode, epochs, ext_storage_path, app=''):
+def load_or_train_model(model, dataset, path, param_folder_name, mode, epochs, save_all=False, ext_storage_path='', app=''):
     param_folder_path = os.path.join(path, param_folder_name)
     if not os.path.exists(param_folder_path): makedirs(param_folder_path)
     ext_storage_folder_path = os.path.join(ext_storage_path, param_folder_name)
@@ -52,7 +52,8 @@ def load_or_train_model(model, dataset, path, param_folder_name, mode, epochs, e
                                 epochs=epochs,
                                 param_folder_path=param_folder_path,
                                 param_file_name=param_file_name,
-                                ext_storage_path=ext_storage_path,
+                                save_all=save_all,
+                                ext_storage_path=ext_storage_folder_path,
                                 app_file_name=app_file_name)
     return model
 
@@ -78,7 +79,7 @@ print(df.isnull().sum())
 # PARAMETERS Training
 multilabel_lvl = 1
 
-epochs = 10
+epochs = 5
 learning_rate = 0.001
 # learning_rate = 0.0001
 # learning_rate = 0.4
@@ -91,6 +92,7 @@ num_gpus = 1
 # batch_size = 2006
 per_device_batch_size = 5
 batch_size = per_device_batch_size * max(num_gpus, 1)
+save_all = True
 
 # PARAMETERS Model
 # metric = mx.metric.Accuracy()
@@ -140,6 +142,7 @@ for i, taxa in enumerate(taxonomic_groups):
                                 param_folder_name=param_folder_name,
                                 mode='per_lvl',
                                 epochs=epochs,
+                                save_all=save_all,
                                 ext_storage_path=ext_storage_path,
                                 app='_%s' % taxa)
 
@@ -178,11 +181,11 @@ multilabel_lvl = 2
 #
 # param_folder_name = 'ParameterFiles_%s_e%i_lr%f_m%f'%(net_name,epochs,learning_rate,momentum)
 
-num_workers = cpu_count()
-num_gpus = 1
-# batch_size = 2006
-per_device_batch_size = 5
-batch_size = per_device_batch_size * max(num_gpus, 1)
+# num_workers = cpu_count()
+# num_gpus = 1
+# # batch_size = 2006
+# per_device_batch_size = 5
+# batch_size = per_device_batch_size * max(num_gpus, 1)
 
 # PARAMETERS Model
 # metric = mx.metric.Accuracy()
@@ -229,6 +232,7 @@ model = load_or_train_model(model=model,
                             param_folder_name=param_folder_name,
                             mode='all-in-one',
                             epochs=epochs,
+                            save_all=save_all,
                             ext_storage_path=ext_storage_path )
 
 # x = list(data_handler.samples_per_class.keys())
