@@ -5,12 +5,14 @@ import shutil
 path = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
 missing_values = ['', 'unknown', 'unclassified', 'unidentified']
 
-csv_path = os.path.join(path, 'im.merged.v10032020.csv')
+csv_path = os.path.join(path, 'im.merged.v10032020_back_scan_removed.csv')
 df = pd.read_csv(csv_path, na_values=missing_values)
 
 # preparing the mdate_skey unique identifiers for the new dataset to fit the old data set
 mdate_skey_col = []
+pos_scan_col = []
 for index, row in df.iterrows():
+    pos_scan_col.append(row['Pos_scan'])
     # correct mdate_skey, only copy to new col
     if len(row['Scan_file'].split('_')) > 1:
         mdate_skey_col.append(row['Scan_file'])
@@ -22,7 +24,8 @@ for index, row in df.iterrows():
             mdate_skey_col.append(new_mdate_skey)
 
 df['Scan.date'] = mdate_skey_col
-csv_path = os.path.join(path,'im.merged.v10032020_man.csv' )
+df['Pos.scan'] = pos_scan_col
+csv_path = os.path.join(path,'im.merged.v10032020_unique_id_set.csv' )
 df.to_csv(csv_path)
 
 # changing the new file set to meet old standards,
