@@ -59,15 +59,18 @@ def load_or_train_model(model, dataset, path, param_folder_name, mode, epochs, s
 
 
 # Metaparameters for file handling
-path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
+# path = "/home/stillsen/Documents/Data/Image_classification_soil_fungi__working_copy"
+path = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
+# path = "/home/stillsen/Documents/Data/manual_cut"
 ext_storage_path = '/media/stillsen/Elements SE/Data'
-missing_values = ['', 'unknown', 'unclassified']
+# missing_values = ['', 'unknown', 'unclassified']
+missing_values = ['', 'unknown', 'unclassified', 'unidentified']
 taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 augment = 'transform'
 dataset = 'fun'
 net_name = 'densenet169'
 
-csv_path = os.path.join(path, 'im_merged.csv')
+csv_path = os.path.join(path, 'im.merged.v10032020_unique_id_set.csv')
 df = pd.read_csv(csv_path, na_values=missing_values)
 
 print('NaNs in the label data set')
@@ -79,7 +82,7 @@ print(df.isnull().sum())
 # PARAMETERS Training
 multilabel_lvl = 1
 
-epochs = 5
+epochs = 10
 learning_rate = 0.001
 # learning_rate = 0.0001
 # learning_rate = 0.4
