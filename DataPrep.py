@@ -47,6 +47,7 @@ class DataPrep:
         ids_dict = {}
         filenames = os.listdir(path)
         for file in filenames:
+            # print('\t\t\ttrying to create mapping for %s'%file)
             file_no_ex = file[:-4]
             # rule out unwanted files such as Mo013.tif (not labeled) or  Eka_9.12.17_F(2).tif (pedridish flipped)
             if len(file_no_ex.split('_')) > 1:
@@ -63,6 +64,7 @@ class DataPrep:
                     mdate_skey = dd + '.' + mm + '.' + yy + '_' + skey
                     # print(file, mdate[2], mdate[1], mdate[0], skey, mdate_skey)
                     ids_dict[mdate_skey] = file
+                    # print('\t\t\tmapping: %s -> %s'%(mdate_skey,file))
         return ids_dict
 
     def cut_fun_images(self, path):
@@ -92,6 +94,7 @@ class DataPrep:
             # for folderName, subfolders, filenames in os.walk(path):
             filenames = os.listdir(path)
             for file in filenames:
+                # print('\t\t\tprocessing %s'%file)
                 file_no_ex = file[:-4]
                 # rule out unwanted files such as Mo013.tif (not labeled) or  Eka_9.12.17_F(2).tif (pedridish flipped)
                 if len(file_no_ex.split('_')) > 1:
@@ -143,6 +146,7 @@ class DataPrep:
                         label = row[rank]
                         # get file
                         file_name = ids_dict[mdate_skey].rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(pos - 1) + '.png'
+                        # print('\t\t\tprocessing row %i - %s, %i -> %s' % (index, row['Scan.date'], row['Pos.scan'], file_name))
                         file = os.path.join(path, file_name)
                         # create subfolder in cuts according to taxonomic resolution
                         this_taxon_to_folder = os.path.join(rank_path, str(label))
@@ -322,11 +326,11 @@ class DataPrep:
         return circles
 
     def cut_image(self, path, file, cuts_path, mdate_skey, resize_w=None, resize_h=None, resize=False):
-
-        #check if already computed
+        print('\t\tcutting %s' %file)
+        #check if validation image is already computed
         output_file_name = file.rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cuts' + '.png'
         output_file = os.path.join(cuts_path, output_file_name)
-        if not os.path.exists(output_file):
+        if not os.path.exists(output_file):#if not computed
             img_path = os.path.join(path, file)
             image = cv2.imread(img_path)
             image = cv2.resize(image, dsize=(2550, 3509), interpolation=cv2.INTER_AREA)
@@ -335,6 +339,7 @@ class DataPrep:
             # Create mask for cutting crop
             height, width = image_gs.shape
             mask = np.zeros((height, width), np.uint8)
+            single_circle_mask = np.zeros((height, width), np.uint8)
             # create parameters according to image resolution
             # since resize only one set needed
             dp = 1.4
@@ -349,6 +354,7 @@ class DataPrep:
             output = image.copy()
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             # gray = cv2.cvtColor(img_res, cv2.COLOR_BGR2GRAY)
+            print("\t\t\t\tcomputing Hough Circles")
             circles = cv2.HoughCircles(gray,
                                        cv2.HOUGH_GRADIENT,
                                        dp=dp,
@@ -369,13 +375,17 @@ class DataPrep:
                 # loop over the (x, y) coordinates and radius of the circles
 
                 for (i,(x, y, r)) in enumerate(circles):
-                    # print(i, ' circle: ', y, x)
+                    # print('\t\t\t%i. circle, x=%f, y=%f, r=%f' %(i, x, y, r))
+
+                    # set single circle mask to black again
+                    single_circle_mask = np.zeros((height, width), np.uint8)
 
                     ## create group cut image
                     # draw the circle in the output image, then draw a rectangle
                     # corresponding to the center of the circle
                     cv2.circle(output, (x, y), r, (0, 255, 0), 4)
                     cv2.circle(mask, (x, y), r, (255, 255, 255), thickness=-1)
+                    cv2.circle(single_circle_mask, (x, y), r, (255, 255, 255), thickness=-1)
                     cv2.rectangle(output, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
                     cv2.putText(output,
                                 text=str(i),
@@ -387,20 +397,43 @@ class DataPrep:
                     ## cut crop and save to folder
                     # Copy that image using that mask
                     masked_data = cv2.bitwise_and(image, image, mask=mask)
+                    masked_data_single_circle = cv2.bitwise_and(image, image, mask=single_circle_mask)
+
+                    # ## DEBUG ## DEBUG ## DEBUG ## DEBUG
+                    # cv2.namedWindow('masked data single circle',cv2.WINDOW_NORMAL)
+                    # cv2.resizeWindow('masked data single circle', 600,600)
+                    # cv2.imshow('masked data single circle',masked_data_single_circle)
+                    # cv2.waitKey(5000)
+                    # cv2.destroyAllWindows()
+                    # ## DEBUG ## DEBUG ## DEBUG ## DEBUG
 
                     # Apply Threshold
-                    _, thresh = cv2.threshold(mask, 1, 255, cv2.THRESH_BINARY)
-
+                    # _, thresh = cv2.threshold(mask, 1, 255, cv2.THRESH_BINARY)
+                    _, thresh_sc = cv2.threshold(single_circle_mask, 1, 255, cv2.THRESH_BINARY)
                     # Find Contour
-                    contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    (x, y, w, h) = cv2.boundingRect(contours[0][0])
+                    # contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    contours_sc = cv2.findContours(thresh_sc, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    # contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+                    (x, y, w, h) = cv2.boundingRect(contours_sc[0][0])
+
 
                     # Crop masked_data
-                    crop = masked_data[y:y + h, x:x + w]
+                    crop = masked_data_single_circle[y:y + h, x:x + w]
+
+                    # ## DEBUG ## DEBUG ## DEBUG ## DEBUG
+                    # cv2.namedWindow('crop', cv2.WINDOW_NORMAL)
+                    # cv2.resizeWindow('crop', 600, 600)
+                    # cv2.imshow('crop',crop)
+                    # cv2.waitKey(5000)
+                    # cv2.destroyAllWindows()
+                    # ## DEBUG ## DEBUG ## DEBUG ## DEBUG
+
                     if resize:
                         crop = cv2.resize(crop, dsize=(resize_w, resize_h), interpolation=cv2.INTER_AREA)
                     # save single cut image to cuts path
                     output_file_name = file.rsplit('.', 1)[:-1][0] + '__' + mdate_skey + '__cut__' + str(i) + '.png'
+                    print(output_file_name)
                     output_file = os.path.join(cuts_path, output_file_name)
                     cv2.imwrite(output_file, crop)
 
