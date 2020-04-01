@@ -52,10 +52,12 @@ def prepare_fun_df(df, higher_taxonomic_groups = ['kingdom', 'phylum', 'class', 
         rank = 'species'
         for higher_taxa in reversed(higher_taxonomic_groups):
             if pd.isnull(df['taxon'][index]):
-                df['taxon'][index] = df[higher_taxa][index]
+                # df['taxon'][index] = df[higher_taxa][index]
+                df[index, 'taxon'] = df[higher_taxa][index]
                 rank = higher_taxa
             #set the maximum classification class
-            df['rank'][index] = rank
+            # df['rank'][index] = rank
+            df.ix[index, 'rank'] = rank
             if not pd.isnull(df['taxon'][index]):
                 break
     return df
@@ -415,13 +417,15 @@ def plot_zoo(df_zoo):
 
 
 # pathes to datasets that need to be analyzed and taxonomic classification file
-path_fun = '/home/stillsen/Documents/Data/Image_classification_soil_fungi'
-tax_file_fun = 'im_merged.csv'
+# path_fun = '/home/stillsen/Documents/Data/Image_classification_soil_fungi'
+path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
+tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
+
 path_zoo = '/home/stillsen/Documents/Data/ZooNet/ZooScanSet'
 tax_file_zoo = 'taxa.csv'
 
 #missing value definition
-missing_values_fun = ['', 'unknown', 'unclassified']
+missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 missing_values_zoo = ['',
                       'artefact',
                       'bubble',
@@ -443,11 +447,11 @@ df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
 # #add column taxon and rank, s.a.
 df_fun = prepare_fun_df(df_fun)
 
-csv_path = os.path.join(path_zoo, tax_file_zoo)
-df_zoo = prepare_zoo_df(csv_path, na_values=missing_values_zoo)
+# csv_path = os.path.join(path_zoo, tax_file_zoo)
+# df_zoo = prepare_zoo_df(csv_path, na_values=missing_values_zoo)
 
 
 # ## figures
-# plot_fun(df_fun)
-plot_zoo(df_zoo)
+plot_fun(df_fun)
+# plot_zoo(df_zoo)
 plt.show()

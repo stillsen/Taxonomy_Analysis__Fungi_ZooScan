@@ -82,7 +82,7 @@ print(df.isnull().sum())
 # PARAMETERS Training
 multilabel_lvl = 1
 
-epochs = 10
+epochs = 20
 learning_rate = 0.001
 # learning_rate = 0.0001
 # learning_rate = 0.4

@@ -104,7 +104,7 @@ class ModelHandler:
 
         return metric.get()
 
-    def _save_all(self, ext_storage_path, param_file_name, app_file_name, net_list, score_list, app):
+    def _save_all(self, ext_storage_path, param_file_name, app_file_name, net_list, score_list_test, score_list_train, app):
 
         for i, net in enumerate(net_list):
             e_param_file_name = param_file_name.split('.')[0]+'_e'+str(i)+'.param'
@@ -119,7 +119,8 @@ class ModelHandler:
 
         csv_file_name = app_file_name.split('.')[0] + '.csv'
         abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
-        df = pd.DataFrame(score_list, columns=['scores'])
+        df = pd.DataFrame(score_list_test, columns=['scores_test'])
+        df = pd.DataFrame(score_list_train, columns=['scores_train'])
         df.to_csv(abs_path_csv_file_name)
 
     def train(self, train_iter, val_iter, epochs, param_folder_path, param_file_name, app_file_name, save_all=False, ext_storage_path='', log_interval = 10):
@@ -134,7 +135,8 @@ class ModelHandler:
         loss_fn = self.loss_fn
         # variables for external storage
         net_list = []
-        score_list = []
+        score_list_test = []
+        score_list_train = []
         app = ''
 
         if isinstance(ctx, mx.Context):
@@ -147,8 +149,8 @@ class ModelHandler:
         best_acc = 0
 
         print('\tComputing initial validation score...')
-        val_names, val_accs = self.evaluate(net, val_iter, ctx, metric=self.metrics)
-        print('\t[Initial] validation: %s'%(self.metric_str(val_names, val_accs)))
+        val_names, val_score_test = self.evaluate(net, val_iter, ctx, metric=self.metrics)
+        print('\t[Initial] validation: %s'%(self.metric_str(val_names, val_score_test)))
         for epoch in range(epochs):
             tic = time.time()
             btic = time.time()
@@ -182,23 +184,23 @@ class ModelHandler:
                 metric.update(label, outputs)
 
                 if log_interval and not (i+1)%log_interval:
-                    name, value = metric.get()
+                    name, val_score_train = metric.get()
                     # print('[Epoch %d Batch %d] speed: %f samples/s, training: %s'%(
                     #                epoch, i, batch_size/(time.time()-btic), metric_str(name, value)))
                 btic = time.time()
 
-            name, value = metric.get()
+            name, val_score_train = metric.get()
             metric.reset()
-            print('\t[Epoch %d] training: %s'%(epoch, self.metric_str(name, value)))
+            print('\t[Epoch %d] training: %s'%(epoch, self.metric_str(name, val_score_train)))
             print('\t[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
-            val_names, val_accs = self.evaluate(net, val_iter, ctx, self.metrics)
-            print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_accs)))
+            val_names, val_score_test = self.evaluate(net, val_iter, ctx, self.metrics)
+            print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_score_test)))
             train_loss /= num_batch
 
-            if val_accs > best_acc:
-                print('\tBest validation %s found. Checkpointing...' %self.metric_str(name, val_accs))
+            if val_score_test > best_acc:
+                print('\tBest validation %s found. Checkpointing...' %self.metric_str(name, val_score_test))
                 # new best score
-                best_acc = val_accs
+                best_acc = val_score_test
                 best_net = net
                 # save parameter file
                 abs_path_param_file_name = os.path.join(param_folder_path, param_file_name)
@@ -207,13 +209,14 @@ class ModelHandler:
                 net.save_parameters(abs_path_param_file_name)
                 print('\tappendix in %s' % (abs_path_app_file_name))
                 app_file = open(abs_path_app_file_name, "w+")
-                app_file.write("metric: %s"%(self.metric_str(name, val_accs)))
+                app_file.write("metric: %s"%(self.metric_str(name, val_score_test)))
                 app_file.close()
                 if save_all:
                     app = 'epoch: %i, score: %f' % (epoch, best_acc)
             if save_all:
                 net_list.append(net)
-                score_list.append(val_accs)
+                score_list_test.append(val_score_test)
+                score_list_train.append(val_score_train)
 
 
         if save_all:
@@ -222,7 +225,8 @@ class ModelHandler:
                            param_file_name=param_file_name,
                            app_file_name=app_file_name,
                            net_list=net_list,
-                           score_list=score_list,
+                           score_list_test=score_list_test,
+                           score_list_train=score_list_train,
                            app=app)
 
         return best_net
