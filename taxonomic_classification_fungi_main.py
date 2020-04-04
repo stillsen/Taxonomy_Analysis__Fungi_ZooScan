@@ -1,10 +1,8 @@
-import os, re
+import os
 import pandas as pd
 from multiprocessing import cpu_count
 from matplotlib import pyplot as plt
-from gluoncv.utils import makedirs
 import mxnet as mx
-from mxnet.metric import F1
 from mxnet.metric import PCC
 
 # load custom modules
@@ -35,9 +33,9 @@ def plot_classification_acc(x, y, colors, title, axis=None):
 
 def load_or_train_model(model, dataset, path, param_folder_name, mode, epochs, save_all=False, ext_storage_path='', app=''):
     param_folder_path = os.path.join(path, param_folder_name)
-    if not os.path.exists(param_folder_path): makedirs(param_folder_path)
+    if not os.path.exists(param_folder_path): os.mkdir(param_folder_path)
     ext_storage_folder_path = os.path.join(ext_storage_path, param_folder_name)
-    if not os.path.exists(ext_storage_folder_path): makedirs(ext_storage_folder_path)
+    if not os.path.exists(ext_storage_folder_path): os.mkdir(ext_storage_folder_path)
 
     param_file_name = '%s_%s%s.param' % (dataset, mode, app)
     app_file_name = '%s_%s%s.txt' % (dataset, mode, app)
@@ -109,67 +107,67 @@ metric = PCC()
 jitter_param = 0.4
 lighting_param = 0.1
 
-print("########################################")
-print("Per Level Classifier  ")
-# fig = plt.figure(figsize=(15, 10))
-# subplot = 1
-
-for i, taxa in enumerate(taxonomic_groups):
-    print('working in taxonomic rank: %s' % taxa)
-
-    print('\tmodule DataPrep.py: ... prepraring data')
-    data_prepper = DataPrep(rank=taxa, path=path, dataset=dataset, df=df, multilabel_lvl=multilabel_lvl,
-                            taxonomic_groups=taxonomic_groups)
-
-    print('\tmodule DataHandler.py: ... loading image folder dataset and augmenting')
-    data_handler = DataHandler(path=data_prepper.imagefolder_path,
-                               batch_size=batch_size,
-                               num_workers=num_workers,
-                               augment=augment)
-    classes = data_handler.classes
-    print('\t\tnumer of classes: %s' % classes)
-
-    print('\tmodule ModelHandler.py: ')
-    model = ModelHandler(classes=classes,
-                         batch_size=batch_size,
-                         num_workers=num_workers,
-                         metrics=metric,
-                         learning_rate=learning_rate,
-                         momentum=momentum,
-                         multi_label_lvl=multilabel_lvl)
-
-    ### load parameters if already trained, otherwise train
-    model = load_or_train_model(model=model,
-                                dataset=dataset,
-                                path=path,
-                                param_folder_name=param_folder_name,
-                                mode='per_lvl',
-                                epochs=epochs,
-                                save_all=save_all,
-                                ext_storage_path=ext_storage_path,
-                                app='_%s' % taxa)
-
-    # x = list(data_handler.samples_per_class.keys())
-    # y = list(data_handler.samples_per_class.values())
-
-    # ax = fig.add_subplot(2, 3, i+1)
-    # title = 'Acc %s' %taxa
-    # plot_classification_acc(x=x,
-    #                 y=y,
-    #                 colors='b',
-    #                 title=title,
-    #                 axis=ax)
-    # for cl in data_handler.samples_per_class:
-    #     print("not resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class[cl]))
-    #     print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
-
-    val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx, metric=metric)
-    print('%s: %s' % (taxa, model.metric_str(val_names, val_accs)))
-
-    print('------------------------------------------')
+# print("########################################")
+# print("Per Level Classifier  ")
+# # fig = plt.figure(figsize=(15, 10))
+# # subplot = 1
 #
-# plt.tight_layout()
-# plt.show()
+# for i, taxa in enumerate(taxonomic_groups):
+#     print('working in taxonomic rank: %s' % taxa)
+#
+#     print('\tmodule DataPrep.py: ... prepraring data')
+#     data_prepper = DataPrep(rank=taxa, path=path, dataset=dataset, df=df, multilabel_lvl=multilabel_lvl,
+#                             taxonomic_groups=taxonomic_groups)
+#
+#     print('\tmodule DataHandler.py: ... loading image folder dataset and augmenting')
+#     data_handler = DataHandler(path=data_prepper.imagefolder_path,
+#                                batch_size=batch_size,
+#                                num_workers=num_workers,
+#                                augment=augment)
+#     classes = data_handler.classes
+#     print('\t\tnumer of classes: %s' % classes)
+#
+#     print('\tmodule ModelHandler.py: ')
+#     model = ModelHandler(classes=classes,
+#                          batch_size=batch_size,
+#                          num_workers=num_workers,
+#                          metrics=metric,
+#                          learning_rate=learning_rate,
+#                          momentum=momentum,
+#                          multi_label_lvl=multilabel_lvl)
+#
+#     ### load parameters if already trained, otherwise train
+#     model = load_or_train_model(model=model,
+#                                 dataset=dataset,
+#                                 path=path,
+#                                 param_folder_name=param_folder_name,
+#                                 mode='per_lvl',
+#                                 epochs=epochs,
+#                                 save_all=save_all,
+#                                 ext_storage_path=ext_storage_path,
+#                                 app='_%s' % taxa)
+#
+#     # x = list(data_handler.samples_per_class.keys())
+#     # y = list(data_handler.samples_per_class.values())
+#
+#     # ax = fig.add_subplot(2, 3, i+1)
+#     # title = 'Acc %s' %taxa
+#     # plot_classification_acc(x=x,
+#     #                 y=y,
+#     #                 colors='b',
+#     #                 title=title,
+#     #                 axis=ax)
+#     # for cl in data_handler.samples_per_class:
+#     #     print("not resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class[cl]))
+#     #     print("    resampled %s --- %s: %d" % (taxa, cl, data_handler.samples_per_class_normalized[cl]))
+#
+#     val_names, val_accs = model.evaluate(model.net, data_handler.test_data, model.ctx, metric=metric)
+#     print('%s: %s' % (taxa, model.metric_str(val_names, val_accs)))
+#
+#     print('------------------------------------------')
+# #
+# # plt.tight_layout()
+# # plt.show()
 
 ###################################################################################
 #######################   All in One Classifier  ##################################

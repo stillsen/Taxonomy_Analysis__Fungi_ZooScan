@@ -111,16 +111,17 @@ class ModelHandler:
             abs_path_param_file_name = os.path.join(ext_storage_path, e_param_file_name)
             net.save_parameters(abs_path_param_file_name)
 
-        app_file_name = app_file_name.split('.')[0] + '__best_model.txt'
-        abs_path_app_file_name = os.path.join(ext_storage_path, app_file_name)
-        app_file = open(abs_path_app_file_name, "w+")
-        app_file.write(app)
-        app_file.close()
+        best_model_file_name = app_file_name.split('.')[0] + '__best_model.txt'
+        abs_path_best_model_file_name = os.path.join(ext_storage_path, best_model_file_name)
+        best_model_file = open(abs_path_best_model_file_name, "w+")
+        best_model_file.write(app)
+        best_model_file.close()
 
         csv_file_name = app_file_name.split('.')[0] + '.csv'
         abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
         df = pd.DataFrame(score_list_test, columns=['scores_test'])
-        df = pd.DataFrame(score_list_train, columns=['scores_train'])
+        df['scores_train'] = score_list_train
+        # df = pd.DataFrame(score_list_train, columns=['scores_train'])
         df.to_csv(abs_path_csv_file_name)
 
     def train(self, train_iter, val_iter, epochs, param_folder_path, param_file_name, app_file_name, save_all=False, ext_storage_path='', log_interval = 10):

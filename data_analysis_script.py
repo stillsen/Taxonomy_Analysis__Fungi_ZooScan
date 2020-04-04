@@ -13,6 +13,7 @@ from ete3 import NCBITaxa
 import pickle
 import os.path
 from os import path
+from collections import Counter
 
 def load_ncbi():
     # file_name = '/home/stillsen/Documents/Uni/MasterArbeit/TaxonomicImageClassifier/ncbi_db.pickle'
@@ -194,7 +195,7 @@ def prepare_zoo_df(csv_path, na_values):
 def split_lineage(str):
     return str.split('/')
 
-def plot_taxon_dist(x, y, rank, cc, cmap, colors, taxonomic_groups, taxonomic_groups_to_color, title, offset = 0.0):
+def plot_taxon_dist(x, y, cc, cmap, colors, taxonomic_groups, taxonomic_groups_to_color, title, offset = 0.0):
     fig, ax = plt.subplots(figsize=(15, 6))
     taxon_plot = ax.bar(x, y, color=colors)
 
@@ -208,37 +209,61 @@ def plot_taxon_dist(x, y, rank, cc, cmap, colors, taxonomic_groups, taxonomic_gr
     cbar.set_ticks([taxonomic_groups_to_color[x] + offset for x in taxonomic_groups])
     cbar.set_ticklabels(taxonomic_groups)
 
+    # removing top and right borders
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
     # y ticks
     # for i, val in enumerate(y_fun):
     #     ax.text(i, val, float(val), horizontalalignment='center', verticalalignment='bottom', fontdict={'fontweight':500, 'size':12})
 
     # x ticks
-    plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right')
+    # plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right')
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False,  # ticks along the top edge are off
+        labelbottom=False)
     # title
-    plt.title(title, fontsize=22)
+    # plt.title(title, fontsize=22)
+    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
     # labels
     plt.ylabel("#")
     # plt.xlabel('Taxon')
 
     # make room for x labels
-    plt.tight_layout()
+    # plt.tight_layout()
 
-def plot_class_dist(x, y, colors, title, axis=[]):
-    if axis == []:
+def plot_class_dist(x, y, colors, title, label_x, ax=None):
+    if ax == None:
         fig, ax = plt.subplots(figsize=(15, 6))
         class_plot = ax.bar(x, y, color=colors)
     else:
-        class_plot = axis.bar(x, y, color=colors)
+        class_plot = ax.bar(x, y, color=colors)
 
 
     # y ticks
     # for i, val in enumerate(y_fun):
     #     ax.text(i, val, float(val), horizontalalignment='center', verticalalignment='bottom', fontdict={'fontweight':500, 'size':12})
+    if not label_x:
+        plt.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False)
+    else:
+        # x ticks
+        plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right')
+        # title
+        # plt.title(title, fontsize=22)
 
-    # x ticks
-    plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right')
-    # title
-    plt.title(title, fontsize=22)
+    # removing top and right borders
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
     # labels
     plt.ylabel("#")
     # plt.xlabel('Taxon')
@@ -247,84 +272,197 @@ def plot_class_dist(x, y, colors, title, axis=[]):
     # plt.tight_layout()
 
 
-def plot_fun(df_fun):
+def plot_fun(df_fun, figure_path):
     print('plot fun')
     ##plot fun: taxonomic classes vs count with taxonomic rank colorcoded
-    # classes
-    x_fun = df_fun['taxon'].value_counts().index.tolist()
-    # count
-    y_fun = df_fun['taxon'].value_counts()
     # color coding taxonomic ranks
-    taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
-    taxonomic_groups_to_color = {'kingdom': 0.875, 'phylum': 0.75, 'class': 0.625, 'order': 0.5, 'family': 0.375,
-                                 'genus': 0.25, 'species': 0.125}
+    taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    taxonomic_groups_to_color = { 'phylum': 0.857142857142857, 'class': 0.714285714285714, 'order': 0.571428571428571, 'family': 0.428571428571429,
+                                 'genus':  0.285714285714286, 'species': 0.142857142857143}
+
+    x_fun = []
+    y_fun = []
+    ranks = []
+    for i, rank in enumerate(taxonomic_groups):
+        # classes
+        x_rank = df_fun[rank].value_counts().index.tolist()
+        x_fun.extend(x_rank)
+        # count
+        y_rank = df_fun[rank].value_counts()
+        y_fun.extend(y_rank)
+        # rank vector
+        n_rank = [rank]*len(y_rank)
+        # print('extending by factor %i, and is of length %i' % (len(y_fun), len(n_rank)))
+        ranks.extend(n_rank)
+        # print('stop')
+
+
     #get maximum classification class
-    rank = [df_fun.loc[df_fun['taxon'] == x]['rank'].tolist()[0] for x in x_fun]
+    # rank = [df_fun.loc[df_fun['taxon'] == x]['rank'].tolist()[0] for x in x_fun]
     #color code maximum classification class
-    cc = [taxonomic_groups_to_color[x] for x in rank]
+    cc = [taxonomic_groups_to_color[x] for x in ranks]
     #receive color map
-    cmap = plt.cm.get_cmap('Dark2', 7)
+    cmap = plt.cm.get_cmap('Dark2', 6)
     #encode cc in cmap
     colors = cmap(cc)
 
-    title = 'Taxonomic Distribution - Fungi Dataset'
+    title = 'Per-Level Taxonomic Distribution - Fungi Data set'
     plot_taxon_dist(x=x_fun,
                     y=y_fun,
-                    rank=rank,
                     cc=cc,
                     cmap=cmap,
                     colors=colors,
                     taxonomic_groups=taxonomic_groups,
                     taxonomic_groups_to_color=taxonomic_groups_to_color,
                     title=title,
-                    offset=-0.0625)
-    plt.savefig('Taxonomic_Distribution_-_Fungi_Dataset.png', bbox_inches='tight')
+                    offset=-(0.142857142857143/2))
+    fig_file = os.path.join(figure_path, 'per-lvl_tdist-fds.png')
+    plt.savefig(fig_file, bbox_inches='tight')
+
     ##plot fun:  classes vs count with taxonomic rank colorcoded
     #value count of rank
-    raw_class_count = df_fun['rank'].value_counts()
-    #transform to value count of rank according to taxonomic_groups ordering with 0 if no entry
-    class_count = [raw_class_count[c] if c in raw_class_count else 0 for c in taxonomic_groups]
+    x = Counter(ranks).keys()
+    y = Counter(ranks).values()
     #color encode
-    cc = [taxonomic_groups_to_color[x] for x in taxonomic_groups]
-    cmap = plt.cm.get_cmap('Dark2', 7)
+    cc = [taxonomic_groups_to_color[xi] for xi in x]
+    cmap = plt.cm.get_cmap('Dark2', 6)
     colors = cmap(cc)
 
-    title = 'Class Distribution - Fungi Dataset'
-    plot_class_dist(x=taxonomic_groups,
-                    y=class_count,
+    title = 'Unique Class Count Per Taxonomic Rank - Fungi Data set'
+    plot_class_dist(x=x,
+                    y=y,
                     colors=colors,
-                    title=title)
+                    title=title,
+                    label_x = True)
     plt.tight_layout()
-    plt.savefig('Class_Distribution_-_Fungi_Dataset.png', bbox_inches='tight')
+    fig_file = os.path.join(figure_path, 'ucc_-_fds.png')
+    plt.savefig(fig_file, bbox_inches='tight')
 
     ##plot fun:  single class distribution with taxonomic rank colorcoded
     fig = plt.figure(figsize=(15, 10))
     # fig.subplots_adjust(hspace=0.4, wspace=0.4)
     subplot = 1
-    for i, taxa in enumerate(taxonomic_groups):
-        if taxa == 'kingdom': continue
+    for i, rank in enumerate(taxonomic_groups):
+        # get counts per rank as dict
+        d = Counter(df_fun[rank])
+        # converting nan to "unclassified"
+        if np.nan in d:
+            d['unclassified'] = d.pop(np.nan)
         # title = '%s Distribution - Fungi Dataset'%taxa
-        title=""
-        #get sub dataframe where rank = taxa
-        sub_df = df_fun.loc[df_fun['rank']==taxa]
+        title = str(rank)
+        # title = ''
         #set color accordingly
         color = colors[i]
-        #get counts and plot
-        if len(sub_df)>0:
-            x = sub_df['taxon'].value_counts().index.tolist()
-            # count
-            y = sub_df['taxon'].value_counts()
-            ax = fig.add_subplot(2, 3, subplot)
-            plot_class_dist(x=x,
-                            y=y,
-                            colors=color,
-                            title=title,
-                            axis=ax)
-            subplot+=1
+
+        ax = fig.add_subplot(2, 3, subplot)
+        plot_class_dist(x=d.keys(),
+                        y=d.values(),
+                        colors=color,
+                        title=title,
+                        label_x = False,
+                        ax=ax)
+        subplot+=1
             # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
     plt.tight_layout()
-    plt.savefig('Within_Class_Distribution_-_Fungi_Dataset.png', bbox_inches='tight')
+    fig_file = os.path.join(figure_path, 'rank_dist_-_fds.png')
+    plt.savefig(fig_file, bbox_inches='tight')
 
+def plot_fun_classification(storage_path,  figure_path, epochs):
+    print('plot fun classification')
+
+    storage_folder = 'ParameterFiles_densenet169_e%i_lr0.001000_m0.800000'%epochs
+    storage_path = os.path.join(storage_path,storage_folder)
+    dataset = 'fun'
+    mode = 'per_lvl'
+
+    # color coding taxonomic ranks
+    taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    taxonomic_groups_to_color = { 'phylum': 0.857142857142857, 'class': 0.714285714285714, 'order': 0.571428571428571, 'family': 0.428571428571429, 'genus':  0.285714285714286, 'species': 0.142857142857143}
+
+    cc = [taxonomic_groups_to_color[x] for x in taxonomic_groups]
+    #receive color map
+    cmap = plt.cm.get_cmap('Dark2', 6)
+    #encode cc in cmap
+    colors = cmap(cc)
+
+    ### plot fun score over epochs - per lvl
+    fig = plt.figure(figsize=(15, 10))
+    subplot = 1
+    for i, rank in enumerate(taxonomic_groups):
+        # read csv stored classification score
+        csv_file_name = '%s_%s_%s.csv' % (dataset, mode, rank)
+        csv_file_path = os.path.join(storage_path,csv_file_name)
+        print('reading %s'%csv_file_path)
+        df = pd.read_csv(csv_file_path)
+        df['x'] = range(0,len(df))
+
+        title = str(rank)
+
+        ax = fig.add_subplot(2, 3, subplot)
+        line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
+        line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
+
+        plt.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False)
+
+        # removing top and right borders
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        # title
+        ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+        #add a legend
+        # ax.legend([line_train, line_test], ['train','test'])
+        if subplot == 1:
+            ax.legend()
+
+        subplot+=1
+            # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
+    plt.tight_layout()
+    fig_file = os.path.join(figure_path, 'scores_per_lvl_-_fds.png')
+    plt.savefig(fig_file, bbox_inches='tight')
+
+
+    ### plot fun score over epochs - all-in-one
+    fig, ax = plt.subplots(figsize=(15, 6))
+
+    # read csv stored classification score
+    mode = 'all-in-one'
+    csv_file_name = '%s_%s.csv' % (dataset, mode)
+    csv_file_path = os.path.join(storage_path,csv_file_name)
+    print('reading %s' % csv_file_path)
+    df = pd.read_csv(csv_file_path)
+
+    df['x'] = range(0,len(df))
+    title = 'all in one'
+
+    # ax = fig.add_subplot(2, 3, subplot)
+    line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
+    line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
+
+    plt.tick_params(
+        axis='x',  # changes apply to the x-axis
+        which='both',  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False,  # ticks along the top edge are off
+        labelbottom=False)
+
+    # removing top and right borders
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # title
+    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+    #add a legend
+    # ax.legend('scores_train','scores_test')
+    # ax.legend([line_train, line_test], ['train', 'test'])
+    ax.legend()
+
+    plt.tight_layout()
+    fig_file = os.path.join(figure_path, 'scores_all-ine-one_-_fds.png')
+    plt.savefig(fig_file, bbox_inches='tight')
 
 def plot_zoo(df_zoo):
     print('plot zoo')
@@ -408,7 +546,7 @@ def plot_zoo(df_zoo):
                             y=y,
                             colors=color,
                             title=title,
-                            axis=ax)
+                            ax=ax)
             subplot+=1
             # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
     plt.tight_layout()
@@ -421,8 +559,13 @@ def plot_zoo(df_zoo):
 path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
 tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 
+epochs = 10
+storage_path = '/media/stillsen/Elements SE/Data/'
+
 path_zoo = '/home/stillsen/Documents/Data/ZooNet/ZooScanSet'
 tax_file_zoo = 'taxa.csv'
+
+figure_path = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/figures'
 
 #missing value definition
 missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
@@ -452,6 +595,7 @@ df_fun = prepare_fun_df(df_fun)
 
 
 # ## figures
-plot_fun(df_fun)
+plot_fun(df_fun=df_fun,figure_path=figure_path)
+plot_fun_classification(storage_path=storage_path,  figure_path=figure_path, epochs=epochs)
 # plot_zoo(df_zoo)
 plt.show()
