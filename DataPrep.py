@@ -1,12 +1,10 @@
-import os, argparse, shutil, random, time, cv2
+import os, shutil, random, time, cv2
 import pandas as pd
 from gluoncv.utils import makedirs
-import mxnet.image as img
-import mxnet as mx
 import ast
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import image as plti
+import pickle
 
 
 class DataPrep:
@@ -33,6 +31,8 @@ class DataPrep:
             # copies those folders/files according to sample ratio in path/test, path/train and path/val
             cuts_path = self.cut_fun_images(path)
             ids_dict = self.create_ids_dict(path=path)
+            # pickle.dump(ids_dict, open(os.path.join(path,'ids.dict'),'wb'))
+            # print('pickle done')
             self.imagefolder_path = self.loadcreate_image_folders(path=cuts_path, rank=rank, df=df, dataset=dataset, ids_dict=ids_dict, multilabel_lvl=multilabel_lvl)
             self.sample(self.imagefolder_path)
         if dataset == 'zoo':

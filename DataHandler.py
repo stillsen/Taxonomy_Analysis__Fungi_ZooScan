@@ -23,9 +23,6 @@ class DataHandler:
         train_path = os.path.join(path, 'train')
         val_path = os.path.join(path, 'val')
         test_path = os.path.join(path, 'test')
-        train_ids = gluon.data.vision.ImageFolderDataset(train_path)
-        test_ids = gluon.data.vision.ImageFolderDataset(test_path)
-        val_ids = gluon.data.vision.ImageFolderDataset(val_path)
 
         subdirs = os.listdir(train_path)
         self.classes = len([subdir for subdir in subdirs if os.path.isdir(os.path.join(train_path, subdir))])
@@ -35,6 +32,7 @@ class DataHandler:
             self.samples_per_class[subdir] = len(os.listdir(os.path.join(train_path, subdir)))
 
         # resample class distribution in directory
+        print("\t\t\tattempting to resample distribution with pseudo bootstrapping")
         self.resample_class_distribution_in_directory(train_path)
         self.resample_class_distribution_in_directory(test_path)
         self.resample_class_distribution_in_directory(val_path)
@@ -43,6 +41,14 @@ class DataHandler:
         for subdir in subdirs:
             self.samples_per_class_normalized[subdir] = len(os.listdir(os.path.join(train_path, subdir)))
 
+        print("\t\t\t\tloading train as IFDS")
+        train_ids = gluon.data.vision.ImageFolderDataset(train_path)
+        print("\t\t\t\tloading test as IFDS")
+        test_ids = gluon.data.vision.ImageFolderDataset(test_path)
+        print("\t\t\t\tloading val as IFDS")
+        val_ids = gluon.data.vision.ImageFolderDataset(val_path)
+
+        print('\t\t\t\tIFDS -> DataLoader, augmentation: %s' %augment)
         # split into train, vla, test
         if augment == 'transform':
             self.train_data = gluon.data.DataLoader(

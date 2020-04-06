@@ -1,10 +1,8 @@
 import os, time
 import mxnet as mx
-from mxnet import gluon, init
+from mxnet import gluon, init, gpu
 from mxnet import autograd as ag
-from mxnet.gluon import nn
 from gluoncv.model_zoo import get_model
-from gluoncv.utils import makedirs
 import pandas as pd
 
 
@@ -40,6 +38,7 @@ class ModelHandler:
 
         self.gpus = mx.test_utils.list_gpus()
         self.ctx = [mx.gpu(i) for i in self.gpus] if len(self.gpus) > 0 else [mx.cpu()]
+        # self.ctx = gpu()
 
         self.multi_label_lvl = multi_label_lvl
 
@@ -104,27 +103,19 @@ class ModelHandler:
 
         return metric.get()
 
-    def _save_all(self, ext_storage_path, param_file_name, app_file_name, net_list, score_list_test, score_list_train, app):
+    def _save_all(self, ext_storage_path, param_file_name, net, epoch, score_test, score_train):
+        print('\t\t\tsaving parameters')
+        e_param_file_name = param_file_name.split('.')[0]+'_e'+str(epoch)+'.param'
+        abs_path_param_file_name = os.path.join(ext_storage_path, e_param_file_name)
+        net.save_parameters(abs_path_param_file_name)
 
-        for i, net in enumerate(net_list):
-            e_param_file_name = param_file_name.split('.')[0]+'_e'+str(i)+'.param'
-            abs_path_param_file_name = os.path.join(ext_storage_path, e_param_file_name)
-            net.save_parameters(abs_path_param_file_name)
-
-        best_model_file_name = app_file_name.split('.')[0] + '__best_model.txt'
-        abs_path_best_model_file_name = os.path.join(ext_storage_path, best_model_file_name)
-        best_model_file = open(abs_path_best_model_file_name, "w+")
-        best_model_file.write(app)
-        best_model_file.close()
-
-        csv_file_name = app_file_name.split('.')[0] + '.csv'
+        csv_file_name = param_file_name.split('.')[0]+'_e'+str(epoch)+'.csv'
         abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
-        df = pd.DataFrame(score_list_test, columns=['scores_test'])
-        df['scores_train'] = score_list_train
-        # df = pd.DataFrame(score_list_train, columns=['scores_train'])
+        df = pd.DataFrame([score_test], columns=['scores_test'])
+        df['scores_train'] = [score_train]
         df.to_csv(abs_path_csv_file_name)
 
-    def train(self, train_iter, val_iter, epochs, param_folder_path, param_file_name, app_file_name, save_all=False, ext_storage_path='', log_interval = 10):
+    def train(self, train_iter, val_iter, epochs, param_file_name, ext_storage_path='', log_interval = 10):
         net = self.net
         best_net = net
         ctx = self.ctx
@@ -135,9 +126,6 @@ class ModelHandler:
         batch_size = self.batch_size
         loss_fn = self.loss_fn
         # variables for external storage
-        net_list = []
-        score_list_test = []
-        score_list_train = []
         app = ''
 
         if isinstance(ctx, mx.Context):
@@ -198,36 +186,12 @@ class ModelHandler:
             print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_score_test)))
             train_loss /= num_batch
 
-            if val_score_test > best_acc:
-                print('\tBest validation %s found. Checkpointing...' %self.metric_str(name, val_score_test))
-                # new best score
-                best_acc = val_score_test
-                best_net = net
-                # save parameter file
-                abs_path_param_file_name = os.path.join(param_folder_path, param_file_name)
-                abs_path_app_file_name = os.path.join(param_folder_path, app_file_name)
-                print('\tsaving in %s' % (abs_path_param_file_name))
-                net.save_parameters(abs_path_param_file_name)
-                print('\tappendix in %s' % (abs_path_app_file_name))
-                app_file = open(abs_path_app_file_name, "w+")
-                app_file.write("metric: %s"%(self.metric_str(name, val_score_test)))
-                app_file.close()
-                if save_all:
-                    app = 'epoch: %i, score: %f' % (epoch, best_acc)
-            if save_all:
-                net_list.append(net)
-                score_list_test.append(val_score_test)
-                score_list_train.append(val_score_train)
-
-
-        if save_all:
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
             self._save_all(ext_storage_path=ext_storage_path,
                            param_file_name=param_file_name,
-                           app_file_name=app_file_name,
-                           net_list=net_list,
-                           score_list_test=score_list_test,
-                           score_list_train=score_list_train,
-                           app=app)
+                           net=net,
+                           epoch = epoch,
+                           score_test=val_score_test,
+                           score_train=val_score_train)
 
         return best_net

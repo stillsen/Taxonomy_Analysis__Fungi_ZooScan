@@ -426,43 +426,43 @@ def plot_fun_classification(storage_path,  figure_path, epochs):
     plt.savefig(fig_file, bbox_inches='tight')
 
 
-    ### plot fun score over epochs - all-in-one
-    fig, ax = plt.subplots(figsize=(15, 6))
-
-    # read csv stored classification score
-    mode = 'all-in-one'
-    csv_file_name = '%s_%s.csv' % (dataset, mode)
-    csv_file_path = os.path.join(storage_path,csv_file_name)
-    print('reading %s' % csv_file_path)
-    df = pd.read_csv(csv_file_path)
-
-    df['x'] = range(0,len(df))
-    title = 'all in one'
-
-    # ax = fig.add_subplot(2, 3, subplot)
-    line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
-    line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
-
-    plt.tick_params(
-        axis='x',  # changes apply to the x-axis
-        which='both',  # both major and minor ticks are affected
-        bottom=False,  # ticks along the bottom edge are off
-        top=False,  # ticks along the top edge are off
-        labelbottom=False)
-
-    # removing top and right borders
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # title
-    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
-    #add a legend
-    # ax.legend('scores_train','scores_test')
-    # ax.legend([line_train, line_test], ['train', 'test'])
-    ax.legend()
-
-    plt.tight_layout()
-    fig_file = os.path.join(figure_path, 'scores_all-ine-one_-_fds.png')
-    plt.savefig(fig_file, bbox_inches='tight')
+    # ### plot fun score over epochs - all-in-one
+    # fig, ax = plt.subplots(figsize=(15, 6))
+    #
+    # # read csv stored classification score
+    # mode = 'all-in-one'
+    # csv_file_name = '%s_%s.csv' % (dataset, mode)
+    # csv_file_path = os.path.join(storage_path,csv_file_name)
+    # print('reading %s' % csv_file_path)
+    # df = pd.read_csv(csv_file_path)
+    #
+    # df['x'] = range(0,len(df))
+    # title = 'all in one'
+    #
+    # # ax = fig.add_subplot(2, 3, subplot)
+    # line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
+    # line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
+    #
+    # plt.tick_params(
+    #     axis='x',  # changes apply to the x-axis
+    #     which='both',  # both major and minor ticks are affected
+    #     bottom=False,  # ticks along the bottom edge are off
+    #     top=False,  # ticks along the top edge are off
+    #     labelbottom=False)
+    #
+    # # removing top and right borders
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # title
+    # ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+    # #add a legend
+    # # ax.legend('scores_train','scores_test')
+    # # ax.legend([line_train, line_test], ['train', 'test'])
+    # ax.legend()
+    #
+    # plt.tight_layout()
+    # fig_file = os.path.join(figure_path, 'scores_all-ine-one_-_fds.png')
+    # plt.savefig(fig_file, bbox_inches='tight')
 
 def plot_zoo(df_zoo):
     print('plot zoo')
@@ -559,7 +559,7 @@ def plot_zoo(df_zoo):
 path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
 tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 
-epochs = 10
+epochs = 20
 storage_path = '/media/stillsen/Elements SE/Data/'
 
 path_zoo = '/home/stillsen/Documents/Data/ZooNet/ZooScanSet'
