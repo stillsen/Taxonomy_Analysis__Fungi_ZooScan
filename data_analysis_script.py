@@ -263,7 +263,7 @@ def plot_class_dist(x, y, colors, title, label_x, ax=None):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+    ax.text(.9, .95, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
     # labels
     plt.ylabel("#")
     # plt.xlabel('Taxon')
@@ -306,7 +306,8 @@ def plot_fun(df_fun, figure_path):
     #encode cc in cmap
     colors = cmap(cc)
 
-    title = 'Per-Level Taxonomic Distribution - Fungi Data set'
+    # 'Per-Level Taxonomic Distribution - Fungi Data set'
+    title = ''
     plot_taxon_dist(x=x_fun,
                     y=y_fun,
                     cc=cc,
@@ -316,7 +317,7 @@ def plot_fun(df_fun, figure_path):
                     taxonomic_groups_to_color=taxonomic_groups_to_color,
                     title=title,
                     offset=-(0.142857142857143/2))
-    fig_file = os.path.join(figure_path, 'per-lvl_tdist-fds.png')
+    fig_file = os.path.join(figure_path, 'data__per-lvl_tdist-fds.png')
     plt.savefig(fig_file, bbox_inches='tight')
 
     ##plot fun:  classes vs count with taxonomic rank colorcoded
@@ -328,14 +329,15 @@ def plot_fun(df_fun, figure_path):
     cmap = plt.cm.get_cmap('Dark2', 6)
     colors = cmap(cc)
 
-    title = 'Unique Class Count Per Taxonomic Rank - Fungi Data set'
+    # 'Unique Class Count Per Taxonomic Rank - Fungi Data set'
+    title = ''
     plot_class_dist(x=x,
                     y=y,
                     colors=colors,
                     title=title,
                     label_x = True)
     plt.tight_layout()
-    fig_file = os.path.join(figure_path, 'ucc_-_fds.png')
+    fig_file = os.path.join(figure_path, 'data__ucc_-_fds.png')
     plt.savefig(fig_file, bbox_inches='tight')
 
     ##plot fun:  single class distribution with taxonomic rank colorcoded
@@ -364,7 +366,7 @@ def plot_fun(df_fun, figure_path):
         subplot+=1
             # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
     plt.tight_layout()
-    fig_file = os.path.join(figure_path, 'rank_dist_-_fds.png')
+    fig_file = os.path.join(figure_path, 'data__rank_dist_-_fds.png')
     plt.savefig(fig_file, bbox_inches='tight')
 
 def plot_fun_classification(storage_path,  figure_path, epochs):
@@ -402,18 +404,24 @@ def plot_fun_classification(storage_path,  figure_path, epochs):
         line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
         line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
 
+        plt.ylim(-1, 1)
         plt.tick_params(
             axis='x',  # changes apply to the x-axis
             which='both',  # both major and minor ticks are affected
-            bottom=False,  # ticks along the bottom edge are off
+            #bottom=False,  # ticks along the bottom edge are off
             top=False,  # ticks along the top edge are off
-            labelbottom=False)
+            #labelbottom=False
+            )
 
         # removing top and right borders
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         # title
-        ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+        ax.text(.9, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+        # adds major gridlines
+        ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
+        plt.yticks([-1,-0.5,0,0.5,1])
+        plt.xticks([0, 20])
         #add a legend
         # ax.legend([line_train, line_test], ['train','test'])
         if subplot == 1:
@@ -422,7 +430,7 @@ def plot_fun_classification(storage_path,  figure_path, epochs):
         subplot+=1
             # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
     plt.tight_layout()
-    fig_file = os.path.join(figure_path, 'scores_per_lvl_-_fds.png')
+    fig_file = os.path.join(figure_path, 'results__classification_scores_per_lvl-PCC_x_20epochs_-_fds.png')
     plt.savefig(fig_file, bbox_inches='tight')
 
 

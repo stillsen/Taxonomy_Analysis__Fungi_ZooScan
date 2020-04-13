@@ -104,7 +104,7 @@ print("Per Level Classifier  ")
 # fig = plt.figure(figsize=(15, 10))
 # subplot = 1
 
-for i, taxa in enumerate(taxonomic_groups[2:]):
+for i, taxa in enumerate(taxonomic_groups[-1]):
     print('working in taxonomic rank: %s' % taxa)
 
     print('\tmodule DataPrep.py: ... prepraring data')
@@ -126,7 +126,8 @@ for i, taxa in enumerate(taxonomic_groups[2:]):
                          metrics=metric,
                          learning_rate=learning_rate,
                          momentum=momentum,
-                         multi_label_lvl=multilabel_lvl)
+                         multi_label_lvl=multilabel_lvl,
+                         model_name=net_name)
 
     ### load parameters if already trained, otherwise train
     model = load_or_train_model(model=model,
