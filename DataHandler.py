@@ -51,6 +51,7 @@ class DataHandler:
         print('\t\t\t\tIFDS -> DataLoader, augmentation: %s' %augment)
         # split into train, vla, test
         if augment == 'transform':
+            # transform_first transforms only the data[0] but not the label[1]
             self.train_data = gluon.data.DataLoader(
                 train_ids.transform_first(self.transform()),
                 batch_size=batch_size, shuffle=True, num_workers=num_workers)
