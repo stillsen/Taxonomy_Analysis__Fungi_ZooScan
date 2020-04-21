@@ -31,7 +31,7 @@ def plot_classification_acc(x, y, colors, title, axis=None):
     # plt.tight_layout()
 
 
-def load_or_train_model(model, dataset, mode, epochs, ext_storage_path, taxa=''):
+def load_or_train_model(model, dataset, mode, epochs, ext_storage_path, data_handler ,taxa=''):
     param_file_name = '%s_%s%s.param' % (dataset, mode, taxa)
     abs_param_file_name = os.path.join(ext_storage_path, param_file_name)
     print('Ext Storage Path: %s'%ext_storage_path)
@@ -135,6 +135,7 @@ for i, taxa in enumerate(taxonomic_groups[-1]):
                                 mode='per_lvl',
                                 epochs=epochs,
                                 ext_storage_path=ext_storage_path,
+                                data_handler=data_handler,
                                 taxa='_%s' % taxa)
 
 

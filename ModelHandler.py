@@ -95,27 +95,25 @@ class ModelHandler:
 
     def evaluate(self, net, val_data, ctx, metric):
         # metric = mx.metric.Accuracy()
-        for i, batch in enumerate(val_data):
-            data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-            label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+        for batch in val_data:
+            # data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
+            data =  gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
+            # label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+            label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
             outputs = [net(X) for X in data]
             metric.update(label, outputs)
-
+        val_data.reset()
         return metric.get()
 
-    def _save_all(self, ext_storage_path, param_file_name, net, epoch, score_test, score_train):
+    def _save_all(self, ext_storage_path, param_file_name, net, epoch, fold):
         print('\t\t\tsaving parameters')
-        e_param_file_name = param_file_name.split('.')[0]+'_e'+str(epoch)+'.param'
+        e_param_file_name = param_file_name.split('.')[0]+'_e'+str(epoch)+'_f'+str(fold)+'.param'
         abs_path_param_file_name = os.path.join(ext_storage_path, e_param_file_name)
         net.save_parameters(abs_path_param_file_name)
 
-        csv_file_name = param_file_name.split('.')[0]+'_e'+str(epoch)+'.csv'
-        abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
-        df = pd.DataFrame([score_test], columns=['scores_test'])
-        df['scores_train'] = [score_train]
-        df.to_csv(abs_path_csv_file_name)
 
-    def train(self, train_iter, val_iter, epochs, param_file_name, ext_storage_path='', log_interval = 10):
+
+    def train(self, train_iter, val_iter, epochs, param_file_name, fold, ext_storage_path=''):
         net = self.net
         best_net = net
         ctx = self.ctx
@@ -125,73 +123,67 @@ class ModelHandler:
         wd = self.wd
         batch_size = self.batch_size
         loss_fn = self.loss_fn
-        # variables for external storage
-        app = ''
 
         if isinstance(ctx, mx.Context):
             ctx = [ctx]
         trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': lr, 'momentum': momentum, 'wd': wd})
 
-        num_batch = len(train_iter)
-        # num_batch = 1
-        print('\tbatch num: %d'%num_batch)
-        best_acc = 0
-
         print('\tComputing initial validation score...')
-        val_names, val_score_test = self.evaluate(net, val_iter, ctx, metric=self.metrics)
-        print('\t[Initial] validation: %s'%(self.metric_str(val_names, val_score_test)))
+        val_names, score_val = self.evaluate(net, val_iter, ctx, metric=self.metrics)
+        print('\t[Initial] validation: %s'%(self.metric_str(val_names, score_val)))
+        list_train_score = []
+        list_val_score = []
+        list_epochs = []
         for epoch in range(epochs):
             tic = time.time()
             btic = time.time()
-            train_loss = 0
             metric.reset()
 
-            for i, batch in enumerate(train_iter):
+            for batch in train_iter:
                 # print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
                 # the model zoo models expect normalized images
-                data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
-                label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+                # data = gluon.utils.split_and_load(batch.data, ctx_list=ctx, batch_axis=0, even_split=False)
+                # label = gluon.utils.split_and_load(batch.label, ctx_list=ctx, batch_axis=0, even_split=False)
+                data = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
+                label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 with ag.record():
                     outputs = [net(X) for X in data]
-                    # ############ DEBUG #############
-                    # print(label)
-                    # print(outputs)
-                    # z = zip(outputs, label)
-                    # print("yhat, y")
-                    # for yhat, y in z:
-                    #     print("%s, %s" %(yhat, y))
-                    # loss = [loss_fn(yhat, y) for yhat, y in z]
-                    # ############ DEBUG ##############
                     loss=[]
                     for yhat, y in zip(outputs, label):
                         loss = [*loss, loss_fn(yhat, y)]
-                    # loss = [loss_fn(yhat, y) for yhat, y in zip(outputs, label)]
                     for l in loss:
                         l.backward()
                 trainer.step(batch_size)
-                train_loss += sum([l.mean().asscalar() for l in loss]) / len(loss)
                 metric.update(label, outputs)
 
-                if log_interval and not (i+1)%log_interval:
-                    name, val_score_train = metric.get()
-                    # print('[Epoch %d Batch %d] speed: %f samples/s, training: %s'%(
-                    #                epoch, i, batch_size/(time.time()-btic), metric_str(name, value)))
-                btic = time.time()
+                # if log_interval and not (i+1)%log_interval:
+                #     name, score_train = metric.get()
+                #     # print('[Epoch %d Batch %d] speed: %f samples/s, training: %s'%(
+                #     #                epoch, i, batch_size/(time.time()-btic), metric_str(name, value)))
+                # btic = time.time()
 
-            name, val_score_train = metric.get()
+            name, score_train = metric.get()
             metric.reset()
-            print('\t[Epoch %d] training: %s'%(epoch, self.metric_str(name, val_score_train)))
+            train_iter.reset()
+            print('\t[Epoch %d] training: %s'%(epoch, self.metric_str(name, score_train)))
             print('\t[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
-            val_names, val_score_test = self.evaluate(net, val_iter, ctx, self.metrics)
-            print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, val_score_test)))
-            train_loss /= num_batch
+            val_names, score_val = self.evaluate(net, val_iter, ctx, self.metrics)
+            print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, score_val)))
+            # train_loss /= num_batch
 
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
             self._save_all(ext_storage_path=ext_storage_path,
                            param_file_name=param_file_name,
                            net=net,
                            epoch = epoch,
-                           score_test=val_score_test,
-                           score_train=val_score_train)
+                           fold=fold)
+            list_train_score.append(score_train)
+            list_val_score.append(score_val)
+            list_epochs.append(epoch)
+
+        csv_file_name = param_file_name.split('.')[0]+'_f'+str(fold)+'.csv'
+        abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
+        df = pd.DataFrame(list(zip(list_train_score, list_val_score, list_epochs)), columns=['scores_train', 'scores_test','epochs'])
+        df.to_csv(abs_path_csv_file_name)
 
         return best_net
