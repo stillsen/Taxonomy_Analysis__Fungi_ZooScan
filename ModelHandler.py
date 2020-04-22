@@ -165,10 +165,10 @@ class ModelHandler:
             name, score_train = metric.get()
             metric.reset()
             train_iter.reset()
-            print('\t[Epoch %d] training: %s'%(epoch, self.metric_str(name, score_train)))
-            print('\t[Epoch %d] time cost: %f'%(epoch, time.time()-tic))
+            print('\t[Fold %d Epoch %d] training: %s'%(fold, epoch, self.metric_str(name, score_train)))
+            print('\t[Fold %d Epoch %d] time cost: %f'%(fold, epoch, time.time()-tic))
             val_names, score_val = self.evaluate(net, val_iter, ctx, self.metrics)
-            print('\t[Epoch %d] validation: %s'%(epoch, self.metric_str(val_names, score_val)))
+            print('\t[Fold %d Epoch %d] validation: %s'%(fold, epoch, self.metric_str(val_names, score_val)))
             # train_loss /= num_batch
 
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
