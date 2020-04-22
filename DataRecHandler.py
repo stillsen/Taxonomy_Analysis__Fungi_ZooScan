@@ -9,7 +9,7 @@ import subprocess
 from io import StringIO
 
 class DataRecHandler:
-    def __init__(self, root_path, rank, batch_size, num_workers, k = 1, create_recs=False, oversample_technique='transformed'):
+    def __init__(self, root_path, rank, batch_size, num_workers, k, create_recs=False, oversample_technique='transformed'):
         # Parameters
         # path = root path
         # rank is used as /path/rank
@@ -17,6 +17,8 @@ class DataRecHandler:
         self.chunks = []
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.k = k
+        self.rank = rank
 
         self.val_id =0
         self.test_id = 1
@@ -36,11 +38,9 @@ class DataRecHandler:
             if os.path.isdir(os.path.join(self.rank_path,subdir)):
                 self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
 
-        # oversample and create recs
-        if create_recs:
-            self._oversample(technique=oversample_technique)
-            self._create_recordIO(k=k, rank=rank, num_workers=num_workers)
-        self._load_rec(rank=rank)
+        # oversample and create rec lists
+        self._oversample(technique=oversample_technique)
+        self._create_recordIO_lists()
 
 
         # self._load_ids(root_path, batch_size, num_workers, augment)
@@ -84,19 +84,21 @@ class DataRecHandler:
         if technique == 'smote':
             pass
 
-    def _create_recordIO(self, k, rank, num_workers):
+
+    def _create_recordIO_lists(self):
         # creates lists for and RecordIO files in chunks of k
         # and loads the chunks to self.chunks
         # arguments for im2rec.py
         im2rec = os.path.join(self.root_path, 'im2rec.py')
-        file_prefix = self.rank_path + '/' + rank
+        file_prefix = self.rank_path + '/' + self.rank
         # invoke im2rec to create lists for RecordIO creation
         # capture output as mapping from id to taxon
         # tha mapping is the same across chunks
-        mapping = subprocess.check_output([im2rec, file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(k),'--num-thread', str(num_workers)])
+        mapping = subprocess.check_output([im2rec, file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
+        # mapping = subprocess.check_output([im2rec, file_prefix, self.rank_path, '--recursive', '--list', '--no-shuffle', '--chunks',str(self.k), '--num-thread', str(self.num_workers)])
         raw_data = StringIO(mapping.decode('utf-8'))
         mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
-        if rank == 'all-in-one': # add multi-labels
+        if self.rank == 'all-in-one': # add multi-labels
             # create mapping dicts
             id2taxon = mapping_df.to_dict()['taxon']
             taxon2id = {v: k for k, v in id2taxon.items()}
@@ -105,9 +107,9 @@ class DataRecHandler:
             taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
             csv_path = os.path.join(self.root_path, 'im.merged.v10032020_unique_id_set.csv')
             df = pd.read_csv(csv_path, na_values=missing_values)[taxonomic_groups]
-            for fold in range(k):
+            for fold in range(self.k):
                 # load list as df
-                list_name = rank+'_'+str(fold)+'.lst'
+                list_name = self.rank+'_'+str(fold)+'.lst'
                 list_df = pd.read_csv(os.path.join(self.rank_path,list_name), sep='\t', names=['id', 'label', 'file'], header=None)
                 new_list = ""
                 for index, row in list_df.iterrows():
@@ -123,7 +125,7 @@ class DataRecHandler:
                         # print('%s with id %i '%(item,taxon2id[item]))
                         new_list = new_list + '\t'+str(taxon2id[item])
                     new_list = new_list+ '\t'+ row['file']+'\n'
-                    fn = rank+'_'+str(fold)+'.lst'
+                    fn = self.rank+'_'+str(fold)+'.lst'
                     # print('##########')
                 with open(os.path.join(self.rank_path, fn), 'wt') as out_file:
                     out_file.write(new_list)
@@ -132,32 +134,45 @@ class DataRecHandler:
 
         mapping_df.to_csv(os.path.join(self.rank_path,'mapping.csv'))
 
+
+
+
+
+
+
+
+
+    def load_rec(self, fold):
         # invoke im2rec to create RecordIO according to self.k
-        # and add it to self.chunks[]
-        for fold in range(k):
-            list_arg = file_prefix+'_'+str(fold)+'.lst'
-            subprocess.run([im2rec, list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(num_workers)])
-
-
-
-
-
-    def _iterate_chunks(self, batch_size, fold, num_workers):
-        # increases self.val_idx and self.test_idx
-        pass
-
-    def _load_rec(self, rank):
+        #
         # load chunk recs into dataloaders for train, test, val
-        # according to self.val_idx and self.test_idx
-        file_prefix = self.rank_path + '/' + rank
+        im2rec = os.path.join(self.root_path, 'im2rec.py')
+        file_prefix = self.rank_path + '/' + self.rank
         ###########################################
+
+        fout = file_prefix+'_train_'+str(fold)+'.lst'
+        with open(fout, 'w') as outfile:
+            for i in range(self.k):
+                if i != fold: # leave validation list out
+                    fin = file_prefix+'_'+str(fold)+'.lst'
+                    with open(fin) as infile:
+                        outfile.write(infile.read())
+
+        # create record for train and test
+        fout = file_prefix+'_train_'+str(fold)+'.lst'
+        print('creating '+fout)
+        subprocess.run([im2rec, fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+        list_arg = file_prefix+'_'+str(fold)+'.lst'
+        print('creating '+list_arg)
+        subprocess.run([im2rec, list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+
         label_width = 1
-        # if rank == 'all-in-one':
-        #     label_width = 6
-        fold = 0
-        rec_path = file_prefix+'_'+str(fold)+'.rec'
-        idx_path = file_prefix+'_'+str(fold)+'.idx'
-        lst_path = file_prefix+'_'+str(fold)+'.lst'
+        if self.rank == 'all-in-one':
+            label_width = 6
+
+        rec_path = file_prefix+'_train_'+str(fold)+'.rec'
+        idx_path = file_prefix+'_train_'+str(fold)+'.idx'
+        lst_path = file_prefix+'_train_'+str(fold)+'.lst'
         self.train_data = ImageRecordIter(
             path_imgrec=rec_path,
             path_imgidx=idx_path,
@@ -169,7 +184,6 @@ class DataRecHandler:
             shuffle=True #train true, test no
         )
         # self.train_data = gluon.data.DataLoader(RecordFileDataset(rec_path),batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
-        fold = 1
         rec_path = file_prefix+'_'+str(fold)+'.rec'
         idx_path = file_prefix+'_'+str(fold)+'.idx'
         lst_path = file_prefix+'_'+str(fold)+'.lst'
