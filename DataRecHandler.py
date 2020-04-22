@@ -7,6 +7,7 @@ from mxnet import gluon, image
 from mxnet.io import ImageRecordIter
 import subprocess
 from io import StringIO
+from Im2Rec import Im2Rec
 
 class DataRecHandler:
     def __init__(self, root_path, rank, batch_size, num_workers, k, create_recs=False, oversample_technique='transformed'):
@@ -94,9 +95,9 @@ class DataRecHandler:
         # invoke im2rec to create lists for RecordIO creation
         # capture output as mapping from id to taxon
         # tha mapping is the same across chunks
-        mapping = subprocess.check_output([im2rec, file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
-        # mapping = subprocess.check_output([im2rec, file_prefix, self.rank_path, '--recursive', '--list', '--no-shuffle', '--chunks',str(self.k), '--num-thread', str(self.num_workers)])
-        raw_data = StringIO(mapping.decode('utf-8'))
+        # mapping = subprocess.check_output([im2rec, file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
+        i2r = Im2Rec([file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
+        raw_data = StringIO(i2r.str_mapping)
         mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
         if self.rank == 'all-in-one': # add multi-labels
             # create mapping dicts
@@ -161,11 +162,12 @@ class DataRecHandler:
         # create record for train and test
         fout = file_prefix+'_train_'+str(fold)+'.lst'
         print('creating '+fout)
-        subprocess.run([im2rec, fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+        # subprocess.run([im2rec, fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+        i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
         list_arg = file_prefix+'_'+str(fold)+'.lst'
         print('creating '+list_arg)
-        subprocess.run([im2rec, list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
-
+        # subprocess.run([im2rec, list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+        i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
         label_width = 1
         if self.rank == 'all-in-one':
             label_width = 6
