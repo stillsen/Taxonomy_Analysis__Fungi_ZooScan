@@ -154,7 +154,7 @@ class DataRecHandler:
         with open(fout, 'w') as outfile:
             for i in range(self.k):
                 if i != fold: # leave validation list out
-                    fin = file_prefix+'_'+str(fold)+'.lst'
+                    fin = file_prefix+'_'+str(i)+'.lst'
                     with open(fin) as infile:
                         outfile.write(infile.read())
 
