@@ -135,7 +135,7 @@ class Im2Rec:
                         i += 1
             for k, v in sorted(cat.items(), key=lambda x: x[1]):
                 print(os.path.relpath(k, root), v)
-                self.str_mapping = self.str_mapping+str(os.path.relpath(k, root))+str(v)+'\n'
+                self.str_mapping = self.str_mapping+str(os.path.relpath(k, root))+' '+str(v)+'\n'
         else:
             for fname in sorted(os.listdir(root)):
                 fpath = os.path.join(root, fname)
