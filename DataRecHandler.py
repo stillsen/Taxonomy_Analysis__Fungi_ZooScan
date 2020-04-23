@@ -31,7 +31,7 @@ class DataRecHandler:
         self.rank_path = os.path.join(root_path, rank)
 
         # class count -> crashes if there are files in the rank_path and not only folders
-        self.classes =  len(os.listdir(self.rank_path))
+        self.classes = len([x[0] for x in os.walk(self.rank_path)])-1
         subdirs = os.listdir(self.rank_path)
         # subdirs = [x[0] for x in os.walk(self.rank_path)]
         self.samples_per_class = {}
