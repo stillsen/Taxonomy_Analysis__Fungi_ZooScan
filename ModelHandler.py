@@ -4,9 +4,9 @@ from mxnet import gluon, init, gpu
 from mxnet import autograd as ag
 from gluoncv.model_zoo import get_model
 import pandas as pd
+from JannisLoss import JannisLoss
 
-
-
+from mxnet.ndarray.contrib import isnan
 
 
 class ModelHandler:
@@ -83,8 +83,8 @@ class ModelHandler:
                 finetune_net.collect_params().reset_ctx(ctx)
                 finetune_net.hybridize()
 
-                self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
-                # self.loss_fn = gluon.loss.SigmoidBinaryCrossEntropyLoss()
+                # self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+                self.loss_fn = JannisLoss()
 
         return finetune_net
 
@@ -151,6 +151,11 @@ class ModelHandler:
                     loss=[]
                     for yhat, y in zip(outputs, label):
                         loss = [*loss, loss_fn(yhat, y)]
+                        if isnan(loss):#any(isnan(loss))
+                            print('nan in loss')
+                            print(loss)
+                            print(yhat)
+                            print(y)
                     for l in loss:
                         l.backward()
                 trainer.step(batch_size)
