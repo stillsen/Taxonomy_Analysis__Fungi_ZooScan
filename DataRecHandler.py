@@ -40,8 +40,9 @@ class DataRecHandler:
                 self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
 
         # oversample and create rec lists
-        self._oversample(technique=oversample_technique)
-        self._create_recordIO_lists()
+        if create_recs:
+            self._oversample(technique=oversample_technique)
+            self._create_recordIO_lists()
 
 
         # self._load_ids(root_path, batch_size, num_workers, augment)
