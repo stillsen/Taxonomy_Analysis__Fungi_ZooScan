@@ -308,7 +308,7 @@ class DataRecHandler:
         if self.file_prefix.split('_')[-2] == 'xval':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
         if self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'orig':
-            i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.test_ratio),'--num-thread', str(self.num_workers)])
+            i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.train_ratio),'--num-thread', str(self.num_workers)])
         if self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
 
