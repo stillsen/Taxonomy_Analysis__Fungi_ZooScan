@@ -14,7 +14,7 @@ class ModelHandler:
                  classes,
                  # epochs = 10,
                  metrics,
-                 rank,
+                 rank=None,
                  learning_rate = 0.001,
                  batch_size = 1,
                  momentum = 0.9,
