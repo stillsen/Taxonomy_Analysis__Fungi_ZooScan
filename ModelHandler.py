@@ -14,6 +14,7 @@ class ModelHandler:
                  classes,
                  # epochs = 10,
                  metrics,
+                 rank,
                  learning_rate = 0.001,
                  batch_size = 1,
                  momentum = 0.9,
@@ -46,9 +47,10 @@ class ModelHandler:
                                   model_name=model_name,
                                   pretrained=pretrained,
                                   classes=classes,
-                                  ctx=self.ctx)
+                                  ctx=self.ctx,
+                                  rank=rank)
 
-    def setup_net(self, multi_label_lvl, model_name, pretrained, classes, ctx):
+    def setup_net(self, multi_label_lvl, model_name, pretrained, classes, ctx, rank):
         # Multi-label lvl 1: Binary Relevance Approach
         # Multi-label lvl 2:  Multi-Label/Multi/Class with sigmoid activation function and binary cross entropy loss
         finetune_net = None
@@ -84,7 +86,7 @@ class ModelHandler:
                 finetune_net.hybridize()
 
                 # self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
-                self.loss_fn = JannisLoss()
+                self.loss_fn = JannisLoss(rank)
 
         return finetune_net
 
