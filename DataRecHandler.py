@@ -316,7 +316,7 @@ class DataRecHandler:
         raw_data = StringIO(i2r.str_mapping)
         mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
 
-        if self.rank == 'all-in-one': # add multi-labels
+        if self.rank == 'all-in-one' or self.rank == 'hierarchical' : # add multi-labels
             mapping_df = self._create_ml_list(mapping_df)
 
         # create RecordIO
@@ -352,7 +352,7 @@ class DataRecHandler:
     def load_rec(self, fold=0):
         label_width = 1
         shuffle_test = True
-        if self.rank == 'all-in-one':
+        if self.rank == 'all-in-one' or self.rank == 'hierarchical':
             label_width = 6
 
         if self.mode.split('_')[-2]=='tt-split' and self.mode.split('_')[-3]=='oversampled':
