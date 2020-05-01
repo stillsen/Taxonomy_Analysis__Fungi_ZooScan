@@ -115,7 +115,6 @@ class ModelHandler:
 
     def train(self, train_iter, val_iter, epochs, param_file_name, fold, ext_storage_path=''):
         net = self.net
-        best_net = net
         ctx = self.ctx
         metric = self.metrics
         lr = self.learning_rate
@@ -191,4 +190,4 @@ class ModelHandler:
         df = pd.DataFrame(list(zip(list_train_score, list_val_score, list_epochs)), columns=['scores_train', 'scores_test','epochs'])
         df.to_csv(abs_path_csv_file_name)
 
-        return best_net
+        return net
