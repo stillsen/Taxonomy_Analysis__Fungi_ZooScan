@@ -309,14 +309,21 @@ class DataRecHandler:
                 new_list = new_list + str(row['id'])
                 taxon = id2taxon[row['label']]
                 higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
-                for item in higher_taxons.to_list():  # add additional labels
+                for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
                     if item is np.nan:
                         item = 'nan'
                         # print('adding '+str(item))
-                    if item not in taxon2id:
-                        taxon2id[item] = len(taxon2id) + 1
+                    # if item not in taxon2id:
+                    #     taxon2id[item] = len(taxon2id) + 1
+                    if i not in taxon2id:
+                        taxon2id[i] = dict()
+                    if item not in taxon2id[i]:
+                        taxon2id[i][item] = len(taxon2id[i]) + 1
+                    if i not in self.classes:
+                        self.classes[i] = set()
+                    self.classes[i].add(item)
                     # print('%s with id %i '%(item,taxon2id[item]))
-                    new_list = new_list + '\t' + str(taxon2id[item])
+                    new_list = new_list + '\t' + str(taxon2id[i][item])
                 new_list = new_list + '\t' + row['file'] + '\n'
                 fn = self.file_prefix + '.lst'
                 # print('##########')
