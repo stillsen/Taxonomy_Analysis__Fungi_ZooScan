@@ -31,11 +31,11 @@ class DataRecHandler:
         self.train_ratio = 0.7
 
         # self.mode ='_orig_tt-split_SL'
-        # self.mode ='_orig_tt-split_ML'
+        self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
         # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
-        self.mode ='_orig_xval_ML'
+        # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'
         # self.mode ='_oversampled_xval_ML'
 
@@ -45,7 +45,8 @@ class DataRecHandler:
             # creating train separately
             self.rank_path = os.path.join(root_path, rank, 'train')
             self.file_prefix = self.rank_path + '/' + self.rank + '_train'  + self.mode
-            self.classes = len([x[0] for x in os.walk(os.path.join(self.root_path,rank))])-1 #need get all classes, that's why not in train
+            self.classes = dict()
+            self.classes[rank] = len([x[0] for x in os.walk(os.path.join(self.root_path,rank))])-1 #need get all classes, that's why not in train
             if create_recs: # create train and test folders
                 self.sample()
             subdirs = os.listdir(self.rank_path)
@@ -66,7 +67,8 @@ class DataRecHandler:
         else:
             self.rank_path = os.path.join(root_path, rank)
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
-            self.classes = len([x[0] for x in os.walk(self.rank_path)])-1
+            self.classes = dict()
+            self.classes[rank] = len([x[0] for x in os.walk(self.rank_path)])-1
             subdirs = os.listdir(self.rank_path)
             # subdirs = [x[0] for x in os.walk(self.rank_path)]
             self.samples_per_class = {}
@@ -192,11 +194,13 @@ class DataRecHandler:
     def _create_ml_list(self, mapping_df):
         # create mapping dicts
         id2taxon = mapping_df.to_dict()['taxon']
-        taxon2id = {v: k for k, v in id2taxon.items()}
+        # taxon2id = {v: k for k, v in id2taxon.items()}
+        taxon2id = dict()
         missing_values = ['', 'unknown', 'unclassified', 'unidentified']
         taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
         csv_path = os.path.join(self.root_path, 'im.merged.v10032020_unique_id_set.csv')
         df = pd.read_csv(csv_path, na_values=missing_values)[taxonomic_groups]
+        self.classes = dict()
 
         if self.file_prefix.split('_')[-2]=='xval':
             ## building list
@@ -209,14 +213,22 @@ class DataRecHandler:
                     new_list = new_list + str(row['id'])
                     taxon = id2taxon[row['label']]
                     higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
-                    for item in higher_taxons.to_list():  # add additional labels
+                    for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
                         if item is np.nan:
                             item = 'nan'
                             # print('adding '+str(item))
-                        if item not in taxon2id:
-                            taxon2id[item] = len(taxon2id) + 1
+                        # if item not in taxon2id:
+                        #     taxon2id[item] = len(taxon2id) + 1
+                        if i not in taxon2id:
+                            taxon2id[i] = dict()
+                        if item not in taxon2id[i]:
+                            taxon2id[i][item] = len(taxon2id[i]) + 1
+                        if i not in self.classes:
+                            self.classes[i] = set()
+                        self.classes[i].add(item)
                         # print('%s with id %i '%(item,taxon2id[item]))
-                        new_list = new_list + '\t' + str(taxon2id[item])
+                        # new_list = new_list + '\t' + str(taxon2id[item])
+                        new_list = new_list + '\t' + str(taxon2id[i][item])
                     new_list = new_list + '\t' + row['file'] + '\n'
                     fn = self.file_prefix + '_' + str(fold) + '.lst'
                     # print('##########')
@@ -239,14 +251,21 @@ class DataRecHandler:
                 new_list = new_list + str(row['id'])
                 taxon = id2taxon[row['label']]
                 higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
-                for item in higher_taxons.to_list():  # add additional labels
+                for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
                     if item is np.nan:
                         item = 'nan'
                         # print('adding '+str(item))
-                    if item not in taxon2id:
-                        taxon2id[item] = len(taxon2id) + 1
+                    # if item not in taxon2id:
+                    #     taxon2id[item] = len(taxon2id) + 1
+                    if i not in taxon2id:
+                        taxon2id[i] = dict()
+                    if item not in taxon2id[i]:
+                        taxon2id[i][item] = len(taxon2id[i]) + 1
+                    if i not in self.classes:
+                        self.classes[i] = set()
+                    self.classes[i].add(item)
                     # print('%s with id %i '%(item,taxon2id[item]))
-                    new_list = new_list + '\t' + str(taxon2id[item])
+                    new_list = new_list + '\t' + str(taxon2id[i][item])
                 new_list = new_list + '\t' + row['file'] + '\n'
                 fn = self.file_prefix + '_train' + '.lst'
                 # print('##########')
@@ -260,14 +279,21 @@ class DataRecHandler:
                 new_list = new_list + str(row['id'])
                 taxon = id2taxon[row['label']]
                 higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
-                for item in higher_taxons.to_list():  # add additional labels
+                for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
                     if item is np.nan:
                         item = 'nan'
                         # print('adding '+str(item))
-                    if item not in taxon2id:
-                        taxon2id[item] = len(taxon2id) + 1
+                    # if item not in taxon2id:
+                    #     taxon2id[item] = len(taxon2id) + 1
+                    if i not in taxon2id:
+                        taxon2id[i] = dict()
+                    if item not in taxon2id[i]:
+                        taxon2id[i][item] = len(taxon2id[i]) + 1
+                    if i not in self.classes:
+                        self.classes[i] = set()
+                    self.classes[i].add(item)
                     # print('%s with id %i '%(item,taxon2id[item]))
-                    new_list = new_list + '\t' + str(taxon2id[item])
+                    new_list = new_list + '\t' + str(taxon2id[i][item])
                 new_list = new_list + '\t' + row['file'] + '\n'
                 fn = self.file_prefix + '_test' + '.lst'
                 # print('##########')
