@@ -136,13 +136,17 @@ class ModelHandler:
         print('\tComputing initial validation score...')
         val_names, score_val = self.evaluate(net, val_iter, ctx, metric=self.metrics)
         print('\t[Initial] validation: %s'%(self.metric_str(val_names, score_val)))
+        acc_metric = mx.metric.Accuracy()
         list_train_score = []
         list_val_score = []
+        list_train_acc = []
+        list_val_acc = []
         list_epochs = []
         for epoch in range(epochs):
             tic = time.time()
             btic = time.time()
             metric.reset()
+            acc_metric.reset()
 
             for batch in train_iter:
                 # print('training... epoch:  %d  batch_no:  %s' %(epoch,i))
@@ -165,7 +169,7 @@ class ModelHandler:
                         l.backward()
                 trainer.step(batch_size)
                 metric.update(label, outputs)
-
+                acc_metric.update(label, outputs)
                 # if log_interval and not (i+1)%log_interval:
                 #     name, score_train = metric.get()
                 #     # print('[Epoch %d Batch %d] speed: %f samples/s, training: %s'%(
@@ -173,11 +177,14 @@ class ModelHandler:
                 # btic = time.time()
 
             name, score_train = metric.get()
+            acc_name, acc_train = acc_metric.get()
             metric.reset()
+            acc_metric.reset()
             train_iter.reset()
             print('\t[Fold %d Epoch %d] training: %s'%(fold, epoch, self.metric_str(name, score_train)))
             print('\t[Fold %d Epoch %d] time cost: %f'%(fold, epoch, time.time()-tic))
             val_names, score_val = self.evaluate(net, val_iter, ctx, self.metrics)
+            acc_names, acc_val = self.evaluate(net, val_iter, ctx, acc_metric)
             print('\t[Fold %d Epoch %d] validation: %s'%(fold, epoch, self.metric_str(val_names, score_val)))
             # train_loss /= num_batch
 
@@ -189,6 +196,8 @@ class ModelHandler:
                            fold=fold)
             list_train_score.append(score_train)
             list_val_score.append(score_val)
+            list_train_acc.append(acc_train)
+            list_val_acc.append(acc_val)
             list_epochs.append(epoch)
 
         csv_file_name = param_file_name.split('.')[0]+'_f'+str(fold)+'.csv'
@@ -196,4 +205,8 @@ class ModelHandler:
         df = pd.DataFrame(list(zip(list_train_score, list_val_score, list_epochs)), columns=['scores_train', 'scores_test','epochs'])
         df.to_csv(abs_path_csv_file_name)
 
+        csv_file_name = param_file_name.split('.')[0]+'_f'+str(fold)+'_acc_'+'.csv'
+        abs_path_csv_file_name = os.path.join(ext_storage_path, csv_file_name)
+        df = pd.DataFrame(list(zip(list_train_acc, list_val_acc, list_epochs)), columns=['acc_train', 'acc_test','epochs'])
+        df.to_csv(abs_path_csv_file_name)
         return net
