@@ -42,6 +42,7 @@ class ModelHandler:
         # self.ctx = gpu()
 
         self.multi_label_lvl = multi_label_lvl
+        self.rank = rank
 
         self.net = self.setup_net(multi_label_lvl=multi_label_lvl,
                                   model_name=model_name,
@@ -101,7 +102,10 @@ class ModelHandler:
             # data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
             data =  gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
             # label = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
-            label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
+            if self.multi_label_lvl == 2:
+                label = gluon.utils.split_and_load(batch.label[0][:,self.rank], ctx_list=ctx, batch_axis=0, even_split=False)
+            else:
+                label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
             outputs = [net(X) for X in data]
             metric.update(label, outputs)
         val_data.reset()
