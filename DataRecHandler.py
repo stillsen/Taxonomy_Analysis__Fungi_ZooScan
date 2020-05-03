@@ -47,7 +47,7 @@ class DataRecHandler:
             self.rank_path = os.path.join(root_path, rank_name, 'train')
             self.file_prefix = self.rank_path + '/' + self.rank + '_train'  + self.mode
             self.classes = dict()
-            self.classes[rank_name] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1 #need get all classes, that's why not in train
+            self.classes[rank_idx] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1 #need get all classes, that's why not in train
             if create_recs: # create train and test folders
                 self.sample()
             self._get_samples_p_class()
@@ -64,8 +64,27 @@ class DataRecHandler:
                 self._create_recordIO()
             self.rank_path = os.path.join(root_path, rank_name)
             self._get_samples_p_class()
+        elif self.mode.split('_')[-2] == 'xval' and self.mode.split('_')[-3] == 'oversampled':
+            self.classes = dict()
+            self.classes[rank_idx] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1  # need get all classes, that's why not in train
+            max_class_count = 0
+            for i in range(k):
+                # creating X0 separately
+                self.rank_path = os.path.join(root_path, rank_name, 'x%s'%i)
+                if create_recs and i == 0:  # create all X folders
+                    self.sampleX()
+                self._get_samples_p_class()
+                max_class_count = max(max_class_count, self.samples_per_class[max(self.samples_per_class, key=self.samples_per_class.get)])
+            if create_recs:
+                for i in range(k):
+                    self.rank_path = os.path.join(root_path, rank_name, 'x%s' % i)
+                    self._get_samples_p_class()
+                    self._oversample(technique=oversample_technique,max_class_count=max_class_count)
 
-
+            self.rank_path = os.path.join(root_path, rank_name)
+            self._get_samples_p_class()
+            self.file_prefix = self.rank_path + '/' + self.rank + self.mode
+            self._create_recordIO()
         else:
             self.rank_path = os.path.join(root_path, rank_name)
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
@@ -89,12 +108,13 @@ class DataRecHandler:
             if os.path.isdir(os.path.join(self.rank_path, subdir)):
                 self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
 
-    def _oversample(self, technique = 'transformed'):
+    def _oversample(self, technique='transformed', max_class_count=None):
         # technique = 'naive'
         # technique = 'transformed'
         # technique = 'smote' not implemented yet
-        if technique == 'naive':
+        if max_class_count == None:
             max_class_count = self.samples_per_class[max(self.samples_per_class, key=self.samples_per_class.get)]
+        if technique == 'naive':
             for subdir in self.samples_per_class:
                 subdir_path = os.path.join(self.rank_path,subdir)
                 files = [os.path.join(subdir_path, file) for file in os.listdir(subdir_path)]
@@ -107,7 +127,6 @@ class DataRecHandler:
                         file_name = rdn_image_file[:-4] + '__oversampled_naive__' + str(i) + '.png'
                         cv2.imwrite(file_name, rdn_image.asnumpy())
         if technique == 'transformed':
-            max_class_count = self.samples_per_class[max(self.samples_per_class, key=self.samples_per_class.get)]
             for subdir in self.samples_per_class:
                 subdir_path = os.path.join(self.rank_path,subdir)
                 files = [os.path.join(subdir_path, file) for file in os.listdir(subdir_path)]
@@ -127,6 +146,51 @@ class DataRecHandler:
         if technique == 'smote':
             pass
 
+    def sampleX(self):
+        # Create directories:
+        # already exists: path/
+        # path/cuts/X0...
+        # path/cuts/test/
+        # path/cuts/val/
+        # sample images in
+        path = os.path.join(self.root_path, self.rank)
+        x_images = dict()
+
+        # all subdirs in cut_path without files
+        subdirs = [os.path.join(path, x) for x in os.listdir(path) if not os.path.isfile(os.path.join(path, x))]
+        subdirs_names = [x for x in os.listdir(path) if not os.path.isfile(os.path.join(path, x))]
+        # all files in subdirs
+        filenames = []
+        for subdir in subdirs:
+            files_subdir = os.listdir(subdir)
+            full_file_names = [os.path.join(subdir, f) for f in files_subdir]
+            filenames.append(full_file_names)
+        filenames = [item for sublist in filenames for item in sublist]
+        x_images[0] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        filenames = [elem for elem in filenames if elem not in x_images[0]]
+        x_images[1] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        filenames = [elem for elem in filenames if elem not in x_images[1]]
+        x_images[2] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        filenames = [elem for elem in filenames if elem not in x_images[2]]
+        x_images[3] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        filenames = [elem for elem in filenames if elem not in x_images[3]]
+        x_images[4] = random.sample(filenames, round(len(filenames)))
+        for i in range(self.k):
+            x_path = os.path.join(self.root_path, self.rank, 'x%s' % i)
+            if not os.path.exists(x_path):
+                print('\tsampling into directories: %s'%x_path)
+                # if not os.path.exists(train_path) or not os.path.exists(val_path) or not os.path.exists(test_path):
+                # creating x set
+                os.makedirs(x_path)
+                for l in subdirs_names:
+                    os.makedirs(os.path.join(x_path, l))
+                # Copy files to corresponding directory
+                for file in x_images[i]:
+                    split_list = file.split('/')
+                    label = split_list[-2]
+                    to_path = os.path.join(x_path, label)
+                    print('copying %s to %s' %(file, to_path))
+                    shutil.copy(file, to_path)
 
     def sample(self):
         # Create directories:
@@ -338,21 +402,65 @@ class DataRecHandler:
         mapping_df = pd.DataFrame(taxon2id.items())
         return mapping_df
 
+    def _get_unique_mapping_lists(self, mapping_part):
+        mapping = dict()
+        taxon2id = dict()
+        missing_values = ['', 'unknown', 'unclassified', 'unidentified']
+        taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+        csv_path = os.path.join(self.root_path, 'im.merged.v10032020_unique_id_set.csv')
+        df = pd.read_csv(csv_path, na_values=missing_values)[taxonomic_groups]
+
+        for k in mapping_part:
+            for index, row in mapping_part[k].iterrows():
+                if row['taxon'] not in mapping:
+                    mapping[row['taxon']] = len(mapping)
+
+        for i in range(self.k):
+            # open list file
+            list_name = self.file_prefix+'_'+str(i)+ '.lst'
+            list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+            new_list = ""
+            for index, row in list_df.iterrows():# process list file line by line
+                new_list = new_list + str(row['id'])
+                label = row['label']
+                taxon = mapping_part[i]['taxon'].loc[mapping_part[i]['id']==label].values[0]
+                new_list = new_list + '\t' + str(mapping[taxon])
+                abs_path = os.path.join(self.root_path, self.rank, 'x%s' % i, row['file'])
+                # new_list = new_list + '\t' + row['file'] + '\n'
+                new_list = new_list + '\t' + abs_path + '\n'
+            # print('##########')
+            with open(list_name, 'wt') as out_file:
+                out_file.write(new_list)
+        m_df = pd.DataFrame()
+        m_df['taxon'] = mapping.keys()
+        m_df['id'] = mapping.values()
+        return m_df
+
     def _create_recordIO(self):
         # creates lists for and RecordIO files
         # according to xval, orig_tt-split or oversampled_tt-split
 
         # create lists
-        if self.file_prefix.split('_')[-2] == 'xval':
+        if self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled':
+            mapping_part = dict()
+            for i in range(self.k):
+                rank_path = os.path.join(self.root_path, self.rank, 'x%s' % i)
+                file_prefix = self.file_prefix+'_'+str(i)
+                i2r = Im2Rec([file_prefix, rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
+                raw_data = StringIO(i2r.str_mapping)
+                mapping_part[i] = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+            mapping_df = self._get_unique_mapping_lists(mapping_part)
+        elif self.file_prefix.split('_')[-2] == 'xval':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
-        if self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'orig':
+        elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'orig':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.train_ratio),'--num-thread', str(self.num_workers)])
-        if self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
+        elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
 
-        # get the mapping
-        raw_data = StringIO(i2r.str_mapping)
-        mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+        if not(self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled'):
+            # get the mapping
+            raw_data = StringIO(i2r.str_mapping)
+            mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
 
         if self.rank == 'all-in-one' or self.rank == 'hierarchical' : # add multi-labels
             mapping_df = self._create_ml_list(mapping_df)
@@ -406,6 +514,13 @@ class DataRecHandler:
             test_rec_path = file_prefix + '.rec'
             test_idx_path = file_prefix + '.idx'
             test_lst_path = file_prefix + '.lst'
+        elif self.mode.split('_')[-2]=='xval' and self.mode.split('_')[-3]=='oversampled':
+            train_rec_path = self.file_prefix + '_train_' + str(fold) + '.rec'
+            train_idx_path = self.file_prefix + '_train_' + str(fold) + '.idx'
+            train_lst_path = self.file_prefix + '_train_' + str(fold) + '.lst'
+            test_rec_path = self.file_prefix + '_' + str(fold) + '.rec'
+            test_idx_path = self.file_prefix + '_' + str(fold) + '.idx'
+            test_lst_path = self.file_prefix + '_' + str(fold) + '.lst'
         elif self.file_prefix.split('_')[-2] == 'xval':
             train_rec_path = self.file_prefix + '_train_' + str(fold) + '.rec'
             train_idx_path = self.file_prefix + '_train_' + str(fold) + '.idx'
