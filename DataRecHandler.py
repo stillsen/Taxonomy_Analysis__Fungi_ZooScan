@@ -31,13 +31,13 @@ class DataRecHandler:
         self.test_ratio = 0.3
         self.train_ratio = 0.7
 
-        self.mode ='_orig_tt-split_SL'
+        # self.mode ='_orig_tt-split_SL'
         # self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
         # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
-        # self.mode ='_oversampled_xval_SL'
+        self.mode ='_oversampled_xval_SL'
         # self.mode ='_oversampled_xval_ML'
 
         self.root_path = root_path
@@ -50,33 +50,28 @@ class DataRecHandler:
             self.classes[rank_name] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1 #need get all classes, that's why not in train
             if create_recs: # create train and test folders
                 self.sample()
-            subdirs = os.listdir(self.rank_path)
-            # subdirs = [x[0] for x in os.walk(self.rank_path)]
-            self.samples_per_class = {}
-            for subdir in subdirs:
-                if os.path.isdir(os.path.join(self.rank_path,subdir)):
-                    self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
+            self._get_samples_p_class()
             if create_recs:
-                self._oversample(technique=oversample_technique)
+                self._oversample(technique=oversample_technique)#works with samples_per_class and rank_path
                 self._create_recordIO()
 
             # creating test separately
             self.rank_path = os.path.join(root_path, rank_name, 'test')
             self.file_prefix = self.rank_path + '/' + self.rank + '_test' + self.mode
+            self._get_samples_p_class()
             if create_recs:
+                self._oversample(technique=oversample_technique)
                 self._create_recordIO()
+            self.rank_path = os.path.join(root_path, rank_name)
+            self._get_samples_p_class()
+
+
         else:
             self.rank_path = os.path.join(root_path, rank_name)
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
             self.classes = dict()
             self.classes[rank_idx] = len([x[0] for x in os.walk(self.rank_path)]) - 1
-            subdirs = os.listdir(self.rank_path)
-            # subdirs = [x[0] for x in os.walk(self.rank_path)]
-            self.samples_per_class = {}
-            for subdir in subdirs:
-                if os.path.isdir(os.path.join(self.rank_path,subdir)):
-                    self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
-
+            self._get_samples_p_class()
             # oversample and create rec lists
             if create_recs:
                 if self.mode.split('_')[-3] != 'orig':
@@ -85,6 +80,14 @@ class DataRecHandler:
 
         # self._load_ids(root_path, batch_size, num_workers, augment)
         # self._set_data_sets(batch_size=batch_size,fold=fold,num_workers=num_workers)
+
+    def _get_samples_p_class(self):
+        subdirs = os.listdir(self.rank_path)
+        # subdirs = [x[0] for x in os.walk(self.rank_path)]
+        self.samples_per_class = {}
+        for subdir in subdirs:
+            if os.path.isdir(os.path.join(self.rank_path, subdir)):
+                self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
 
     def _oversample(self, technique = 'transformed'):
         # technique = 'naive'
