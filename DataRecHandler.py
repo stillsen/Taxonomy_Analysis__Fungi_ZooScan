@@ -10,7 +10,7 @@ from io import StringIO
 from Im2Rec import Im2Rec
 
 class DataRecHandler:
-    def __init__(self, root_path, rank, batch_size, num_workers, k,  create_recs=False, oversample_technique='transformed'):
+    def __init__(self, root_path, rank_name, rank_idx, batch_size, num_workers, k, create_recs=False, oversample_technique='transformed'):
         # Parameters
         # path = root path
         # rank is used as /path/rank
@@ -19,7 +19,8 @@ class DataRecHandler:
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.k = k
-        self.rank = rank
+        self.rank = rank_name
+        self.rank_idx = rank_idx
 
         self.val_id =0
         self.test_id = 1
@@ -30,8 +31,8 @@ class DataRecHandler:
         self.test_ratio = 0.3
         self.train_ratio = 0.7
 
-        # self.mode ='_orig_tt-split_SL'
-        self.mode ='_orig_tt-split_ML'
+        self.mode ='_orig_tt-split_SL'
+        # self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
         # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
@@ -43,10 +44,10 @@ class DataRecHandler:
 
         if self.mode.split('_')[-2]=='tt-split' and self.mode.split('_')[-3]=='oversampled':
             # creating train separately
-            self.rank_path = os.path.join(root_path, rank, 'train')
+            self.rank_path = os.path.join(root_path, rank_name, 'train')
             self.file_prefix = self.rank_path + '/' + self.rank + '_train'  + self.mode
             self.classes = dict()
-            self.classes[rank] = len([x[0] for x in os.walk(os.path.join(self.root_path,rank))])-1 #need get all classes, that's why not in train
+            self.classes[rank_name] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1 #need get all classes, that's why not in train
             if create_recs: # create train and test folders
                 self.sample()
             subdirs = os.listdir(self.rank_path)
@@ -60,15 +61,15 @@ class DataRecHandler:
                 self._create_recordIO()
 
             # creating test separately
-            self.rank_path = os.path.join(root_path, rank, 'test')
+            self.rank_path = os.path.join(root_path, rank_name, 'test')
             self.file_prefix = self.rank_path + '/' + self.rank + '_test' + self.mode
             if create_recs:
                 self._create_recordIO()
         else:
-            self.rank_path = os.path.join(root_path, rank)
+            self.rank_path = os.path.join(root_path, rank_name)
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
             self.classes = dict()
-            self.classes[rank] = len([x[0] for x in os.walk(self.rank_path)])-1
+            self.classes[rank_idx] = len([x[0] for x in os.walk(self.rank_path)]) - 1
             subdirs = os.listdir(self.rank_path)
             # subdirs = [x[0] for x in os.walk(self.rank_path)]
             self.samples_per_class = {}
@@ -329,7 +330,8 @@ class DataRecHandler:
                 # print('##########')
             with open(fn, 'wt') as out_file:
                 out_file.write(new_list)
-
+        for key in self.classes:
+            self.classes[key] = len(self.classes[key])
         mapping_df = pd.DataFrame(taxon2id.items())
         return mapping_df
 
