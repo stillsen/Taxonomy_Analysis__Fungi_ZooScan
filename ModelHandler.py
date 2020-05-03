@@ -14,7 +14,7 @@ class ModelHandler:
                  classes,
                  # epochs = 10,
                  metrics,
-                 rank=None,
+                 rank_idx=None,
                  learning_rate = 0.001,
                  batch_size = 1,
                  momentum = 0.9,
@@ -42,14 +42,14 @@ class ModelHandler:
         # self.ctx = gpu()
 
         self.multi_label_lvl = multi_label_lvl
-        self.rank = rank
+        self.rank = rank_idx
 
         self.net = self.setup_net(multi_label_lvl=multi_label_lvl,
                                   model_name=model_name,
                                   pretrained=pretrained,
                                   classes=classes,
                                   ctx=self.ctx,
-                                  rank=rank)
+                                  rank=rank_idx)
 
     def setup_net(self, multi_label_lvl, model_name, pretrained, classes, ctx, rank):
         # Multi-label lvl 1: Binary Relevance Approach
@@ -182,10 +182,12 @@ class ModelHandler:
             acc_metric.reset()
             train_iter.reset()
             print('\t[Fold %d Epoch %d] training: %s'%(fold, epoch, self.metric_str(name, score_train)))
+            print('\t[Fold %d Epoch %d] training: %s' % (fold, epoch, self.metric_str(acc_name, acc_train)))
             print('\t[Fold %d Epoch %d] time cost: %f'%(fold, epoch, time.time()-tic))
             val_names, score_val = self.evaluate(net, val_iter, ctx, self.metrics)
             acc_names, acc_val = self.evaluate(net, val_iter, ctx, acc_metric)
             print('\t[Fold %d Epoch %d] validation: %s'%(fold, epoch, self.metric_str(val_names, score_val)))
+            print('\t[Fold %d Epoch %d] validation: %s' % (fold, epoch, self.metric_str(acc_name, acc_val)))
             # train_loss /= num_batch
 
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
