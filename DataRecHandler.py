@@ -60,24 +60,25 @@ class DataRecHandler:
             self.file_prefix = self.rank_path + '/' + self.rank + '_test' + self.mode
             self._get_samples_p_class()
             if create_recs:
-                self._oversample(technique=oversample_technique)
+                # self._oversample(technique=oversample_technique) !!! VERY IMPORTANT TO NOT OVERSAMPLE TEST, AS IT BIASES THE PCC
                 self._create_recordIO()
             self.rank_path = os.path.join(root_path, rank_name)
+            self.file_prefix = self.rank_path + '/' + self.rank + self.mode
             self._get_samples_p_class()
-        elif self.mode.split('_')[-2] == 'xval' and self.mode.split('_')[-3] == 'oversampled':
+        elif self.mode.split('_')[-2] == 'xval' and self.mode.split('_')[-3] == 'oversampled': #!!! VERY IMPORTANT TO NOT OVERSAMPLE TEST, AS IT BIASES THE PCC
             self.classes = dict()
             self.classes[rank_idx] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1  # need get all classes, that's why not in train
             max_class_count = 0
             for i in range(k):
                 # creating X0 separately
-                self.rank_path = os.path.join(root_path, rank_name, 'x%s'%i)
+                self.rank_path = os.path.join(root_path, rank_name, 'x%s_train'%i)
                 if create_recs and i == 0:  # create all X folders
-                    self.sampleX()
+                    self.sampleX() # create chunk folders for train and test, so that train can be oversampled while test will not
                 self._get_samples_p_class()
                 max_class_count = max(max_class_count, self.samples_per_class[max(self.samples_per_class, key=self.samples_per_class.get)])
             if create_recs:
                 for i in range(k):
-                    self.rank_path = os.path.join(root_path, rank_name, 'x%s' % i)
+                    self.rank_path = os.path.join(root_path, rank_name, 'x%s_train' % i)
                     self._get_samples_p_class()
                     self._oversample(technique=oversample_technique,max_class_count=max_class_count)
 
@@ -175,22 +176,23 @@ class DataRecHandler:
         x_images[3] = random.sample(filenames, round(len(filenames) * 1 / self.k))
         filenames = [elem for elem in filenames if elem not in x_images[3]]
         x_images[4] = random.sample(filenames, round(len(filenames)))
-        for i in range(self.k):
-            x_path = os.path.join(self.root_path, self.rank, 'x%s' % i)
-            if not os.path.exists(x_path):
-                print('\tsampling into directories: %s'%x_path)
-                # if not os.path.exists(train_path) or not os.path.exists(val_path) or not os.path.exists(test_path):
-                # creating x set
-                os.makedirs(x_path)
-                for l in subdirs_names:
-                    os.makedirs(os.path.join(x_path, l))
-                # Copy files to corresponding directory
-                for file in x_images[i]:
-                    split_list = file.split('/')
-                    label = split_list[-2]
-                    to_path = os.path.join(x_path, label)
-                    print('copying %s to %s' %(file, to_path))
-                    shutil.copy(file, to_path)
+        for tt in ['_train','_test']:
+            for i in range(self.k):
+                x_path = os.path.join(self.root_path, self.rank, 'x%s%s' %(i,tt))
+                if not os.path.exists(x_path):
+                    print('\tsampling into directories: %s'%x_path)
+                    # if not os.path.exists(train_path) or not os.path.exists(val_path) or not os.path.exists(test_path):
+                    # creating x set
+                    os.makedirs(x_path)
+                    for l in subdirs_names:
+                        os.makedirs(os.path.join(x_path, l))
+                    # Copy files to corresponding directory
+                    for file in x_images[i]:
+                        split_list = file.split('/')
+                        label = split_list[-2]
+                        to_path = os.path.join(x_path, label)
+                        print('copying %s to %s' %(file, to_path))
+                        shutil.copy(file, to_path)
 
     def sample(self):
         # Create directories:
@@ -402,7 +404,7 @@ class DataRecHandler:
         mapping_df = pd.DataFrame(taxon2id.items())
         return mapping_df
 
-    def _get_unique_mapping_lists(self, mapping_part):
+    def _make_unique_mapping_lists(self, mapping_part):
         mapping = dict()
         taxon2id = dict()
         missing_values = ['', 'unknown', 'unclassified', 'unidentified']
@@ -417,20 +419,21 @@ class DataRecHandler:
 
         for i in range(self.k):
             # open list file
-            list_name = self.file_prefix+'_'+str(i)+ '.lst'
-            list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
-            new_list = ""
-            for index, row in list_df.iterrows():# process list file line by line
-                new_list = new_list + str(row['id'])
-                label = row['label']
-                taxon = mapping_part[i]['taxon'].loc[mapping_part[i]['id']==label].values[0]
-                new_list = new_list + '\t' + str(mapping[taxon])
-                abs_path = os.path.join(self.root_path, self.rank, 'x%s' % i, row['file'])
-                # new_list = new_list + '\t' + row['file'] + '\n'
-                new_list = new_list + '\t' + abs_path + '\n'
-            # print('##########')
-            with open(list_name, 'wt') as out_file:
-                out_file.write(new_list)
+            for tt in ['_train','_test']:
+                list_name = self.file_prefix+'_'+str(i)+tt+'.lst'
+                list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+                new_list = ""
+                for index, row in list_df.iterrows():# process list file line by line
+                    new_list = new_list + str(row['id'])
+                    label = row['label']
+                    taxon = mapping_part[i]['taxon'].loc[mapping_part[i]['id']==label].values[0]
+                    new_list = new_list + '\t' + str(mapping[taxon])
+                    abs_path = os.path.join(self.root_path, self.rank, 'x%s%s' %(i,tt), row['file'])
+                    # new_list = new_list + '\t' + row['file'] + '\n'
+                    new_list = new_list + '\t' + abs_path + '\n'
+                # print('##########')
+                with open(list_name, 'wt') as out_file:
+                    out_file.write(new_list)
         m_df = pd.DataFrame()
         m_df['taxon'] = mapping.keys()
         m_df['id'] = mapping.values()
@@ -443,13 +446,14 @@ class DataRecHandler:
         # create lists
         if self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled':
             mapping_part = dict()
-            for i in range(self.k):
-                rank_path = os.path.join(self.root_path, self.rank, 'x%s' % i)
-                file_prefix = self.file_prefix+'_'+str(i)
-                i2r = Im2Rec([file_prefix, rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
-                raw_data = StringIO(i2r.str_mapping)
-                mapping_part[i] = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
-            mapping_df = self._get_unique_mapping_lists(mapping_part)
+            for tt in ['_train','_test']:
+                for i in range(self.k):
+                    rank_path = os.path.join(self.root_path, self.rank, 'x%s%s' %(i,tt))
+                    file_prefix = self.file_prefix+'_'+str(i)+tt
+                    i2r = Im2Rec([file_prefix, rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
+                    raw_data = StringIO(i2r.str_mapping)
+                    mapping_part[i] = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+            mapping_df = self._make_unique_mapping_lists(mapping_part)
         elif self.file_prefix.split('_')[-2] == 'xval':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
         elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'orig':
@@ -468,17 +472,27 @@ class DataRecHandler:
         # create RecordIO
         if self.file_prefix.split('_')[-2] == 'xval':
             for fold in range(self.k):
-                fout = self.file_prefix + '_train_' + str(fold) + '.lst'
+                if self.file_prefix.split('_')[-3] == 'oversampled':
+                    fout = self.file_prefix + '_ensembled_train_' + str(fold) + '.lst'
+                else:
+                    fout = self.file_prefix + '_train_' + str(fold) + '.lst'
                 with open(fout, 'w') as outfile:
                     for i in range(self.k):
                         if i != fold:  # leave validation list out
-                            fin = self.file_prefix + '_' + str(i) + '.lst'
+                            if self.file_prefix.split('_')[-3] == 'oversampled':
+                                fin = self.file_prefix + '_' + str(i) +'_train'+ '.lst'
+                            else:
+                                fin = self.file_prefix + '_' + str(i) + '.lst'
                             with open(fin) as infile:
                                 outfile.write(infile.read())
                 # create record for train and test
-                fout = self.file_prefix + '_train_' + str(fold) + '.lst'
+                if self.file_prefix.split('_')[-3] == 'oversampled':
+                    fout = self.file_prefix + '_ensembled_train_' + str(fold) + '.lst'
+                    list_arg = self.file_prefix + '_' + str(fold) +'_test'+ '.lst'
+                else:
+                    fout = self.file_prefix + '_train_' + str(fold) + '.lst'
+                    list_arg = self.file_prefix + '_' + str(fold) + '.lst'
                 print('creating ' + fout)
-                list_arg = self.file_prefix + '_' + str(fold) + '.lst'
                 print('creating ' + list_arg)
                 i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
                 i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
@@ -515,12 +529,12 @@ class DataRecHandler:
             test_idx_path = file_prefix + '.idx'
             test_lst_path = file_prefix + '.lst'
         elif self.mode.split('_')[-2]=='xval' and self.mode.split('_')[-3]=='oversampled':
-            train_rec_path = self.file_prefix + '_train_' + str(fold) + '.rec'
-            train_idx_path = self.file_prefix + '_train_' + str(fold) + '.idx'
-            train_lst_path = self.file_prefix + '_train_' + str(fold) + '.lst'
-            test_rec_path = self.file_prefix + '_' + str(fold) + '.rec'
-            test_idx_path = self.file_prefix + '_' + str(fold) + '.idx'
-            test_lst_path = self.file_prefix + '_' + str(fold) + '.lst'
+            train_rec_path = self.file_prefix + '_ensembled_train_' + str(fold) + '.rec'
+            train_idx_path = self.file_prefix + '_ensembled_train_' + str(fold) + '.idx'
+            train_lst_path = self.file_prefix + '_ensembled_train_' + str(fold) + '.lst'
+            test_rec_path = self.file_prefix + '_' + str(fold) + '_test' + '.rec'
+            test_idx_path = self.file_prefix + '_' + str(fold) + '_test' + '.idx'
+            test_lst_path = self.file_prefix + '_' + str(fold) + '_test' + '.lst'
         elif self.file_prefix.split('_')[-2] == 'xval':
             train_rec_path = self.file_prefix + '_train_' + str(fold) + '.rec'
             train_idx_path = self.file_prefix + '_train_' + str(fold) + '.idx'
