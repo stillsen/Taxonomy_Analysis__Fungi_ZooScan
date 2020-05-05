@@ -160,11 +160,6 @@ class ModelHandler:
                     loss=[]
                     for yhat, y in zip(outputs, label):
                         loss = [*loss, loss_fn(yhat, y)]
-                        if isnan(loss):#any(isnan(loss))
-                            print('nan in loss')
-                            print(loss)
-                            print(yhat)
-                            print(y)
                     for l in loss:
                         l.backward()
                 trainer.step(batch_size)
