@@ -32,13 +32,13 @@ class DataRecHandler:
         self.train_ratio = 0.7
 
         # self.mode ='_orig_tt-split_SL'
-        self.mode ='_orig_tt-split_ML'
+        # self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
         # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'
-        # self.mode ='_oversampled_xval_ML'
+        self.mode ='_oversampled_xval_ML'
 
         self.root_path = root_path
 
@@ -277,7 +277,8 @@ class DataRecHandler:
             for tt in ['_train','_test']:
                 for fold in range(self.k):
                     file_prefix = self.file_prefix+'_'+str(fold)+tt
-                    list_name = file_prefix + '_' + str(fold) + '.lst'
+                    # list_name = file_prefix + '_' + str(fold) + '.lst'
+                    list_name = file_prefix + '.lst'
                     list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
                     new_list = ""
                     if self.rank == 'all-in-one':
@@ -304,9 +305,10 @@ class DataRecHandler:
                                 self.classes[i] = set()
                             self.classes[i].add(item)
                         new_list = new_list + '\t' + row['file'] + '\n'
-                        fn = self.file_prefix + '_' + str(fold) + '.lst'
+                        # fn = self.file_prefix + '_' + str(fold) + '.lst'
                         # print('##########')
-                    with open(fn, 'wt') as out_file:
+                    # with open(fn, 'wt') as out_file:
+                    with open(list_name, 'wt') as out_file:
                         out_file.write(new_list)
 
         elif self.file_prefix.split('_')[-2]=='xval':
