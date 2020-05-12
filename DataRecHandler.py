@@ -167,15 +167,19 @@ class DataRecHandler:
             full_file_names = [os.path.join(subdir, f) for f in files_subdir]
             filenames.append(full_file_names)
         filenames = [item for sublist in filenames for item in sublist]
-        x_images[0] = random.sample(filenames, round(len(filenames) * 1 / self.k))
-        filenames = [elem for elem in filenames if elem not in x_images[0]]
-        x_images[1] = random.sample(filenames, round(len(filenames) * 1 / self.k))
-        filenames = [elem for elem in filenames if elem not in x_images[1]]
-        x_images[2] = random.sample(filenames, round(len(filenames) * 1 / self.k))
-        filenames = [elem for elem in filenames if elem not in x_images[2]]
-        x_images[3] = random.sample(filenames, round(len(filenames) * 1 / self.k))
-        filenames = [elem for elem in filenames if elem not in x_images[3]]
-        x_images[4] = random.sample(filenames, round(len(filenames)))
+        for i in range(self.k-1):
+            x_images[i] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+            filenames = [elem for elem in filenames if elem not in x_images[i]]
+        x_images[self.k-1] = random.sample(filenames, round(len(filenames)))
+        # x_images[0] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        # filenames = [elem for elem in filenames if elem not in x_images[0]]
+        # x_images[1] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        # filenames = [elem for elem in filenames if elem not in x_images[1]]
+        # x_images[2] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        # filenames = [elem for elem in filenames if elem not in x_images[2]]
+        # x_images[3] = random.sample(filenames, round(len(filenames) * 1 / self.k))
+        # filenames = [elem for elem in filenames if elem not in x_images[3]]
+        # x_images[4] = random.sample(filenames, round(len(filenames)))
         for tt in ['_train','_test']:
             for i in range(self.k):
                 x_path = os.path.join(self.root_path, self.rank, 'x%s%s' %(i,tt))
@@ -518,7 +522,19 @@ class DataRecHandler:
             mapping_df = self._create_ml_list(mapping_df)
 
         # create RecordIO
-        if self.file_prefix.split('_')[-2] == 'xval':
+        if self.rank == 'hierarchical':
+            for fold in range(self.k):
+                if self.file_prefix.split('_')[-3] == 'oversampled':
+                    fout = self.file_prefix + '_' + str(fold) +'_train.lst'
+                    list_arg = self.file_prefix + '_' + str(fold) + '_test' + '.lst'
+                else:
+                    fout = self.file_prefix + '_train_' + str(fold) + '.lst'
+                    list_arg = self.file_prefix + '_' + str(fold) + '.lst'
+                print('creating ' + fout)
+                print('creating ' + list_arg)
+                i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+                i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+        elif self.file_prefix.split('_')[-2] == 'xval':
             for fold in range(self.k):
                 if self.file_prefix.split('_')[-3] == 'oversampled':
                     fout = self.file_prefix + '_ensembled_train_' + str(fold) + '.lst'
@@ -563,7 +579,26 @@ class DataRecHandler:
         if self.rank == 'all-in-one' or self.rank == 'hierarchical':
             label_width = 6
 
-        if self.mode.split('_')[-2]=='tt-split' and self.mode.split('_')[-3]=='oversampled':
+        if self.rank == 'hierarchical':
+            if self.file_prefix.split('_')[-3] == 'oversampled':
+                file_prefix = self.file_prefix + '_' + str(fold) + '_train'
+                train_rec_path = file_prefix + '.rec'
+                train_idx_path = file_prefix + '.idx'
+                train_lst_path = file_prefix + '.lst'
+                file_prefix = self.file_prefix + '_' + str(self.k-1) + '_test'
+                test_rec_path = file_prefix + '.rec'
+                test_idx_path = file_prefix + '.idx'
+                test_lst_path = file_prefix + '.lst'
+            else:
+                file_prefix = self.file_prefix + '_train_' + str(fold)
+                train_rec_path = file_prefix + '.rec'
+                train_idx_path = file_prefix + '.idx'
+                train_lst_path = file_prefix + '.lst'
+                file_prefix = self.file_prefix + '_' + str(self.k-1)
+                test_rec_path = file_prefix + '.rec'
+                test_idx_path = file_prefix + '.idx'
+                test_lst_path = file_prefix + '.lst'
+        elif self.mode.split('_')[-2]=='tt-split' and self.mode.split('_')[-3]=='oversampled':
             shuffle_test = False
             # creating train separately
             rank_path = os.path.join(self.root_path, self.rank, 'train')
