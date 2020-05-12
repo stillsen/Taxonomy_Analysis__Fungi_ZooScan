@@ -5,7 +5,6 @@ from mxnet import autograd as ag
 from mxnet.ndarray import concat
 from gluoncv.model_zoo import get_model
 import pandas as pd
-from JannisLoss import JannisLoss
 
 from mxnet.ndarray.contrib import isnan
 
@@ -51,12 +50,14 @@ class ModelHandler:
                  num_gpus=1,
                  num_workers=1,
                  model_name = 'densenet169',
-                 pretrained = True,
+                 prior_param = None,
                  multi_label_lvl = 1,
                  ):
-        # Multi-label lvl 1: Binary Relevance Approach
-        # Multi-label lvl 2:  Multi-Label/Multi/Class with sigmoid activation function and binary cross entropy loss
-
+        ##
+        # multilabel_lvl = 1 --> separate local level classifiers
+        # multilabel_lvl = 2 --> big bang classifiers
+        # multilabel_lvl = 3 --> chained local level classifiers
+        ##
         # self.epochs = epochs
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -65,6 +66,7 @@ class ModelHandler:
         self.num_gpus = num_gpus
         self.num_workers = num_workers
         self.metrics = metrics
+        self.best_model = None
 
         self.gpus = mx.test_utils.list_gpus()
         self.ctx = [mx.gpu(i) for i in self.gpus] if len(self.gpus) > 0 else [mx.cpu()]
@@ -75,53 +77,65 @@ class ModelHandler:
 
         self.net = self.setup_net(multi_label_lvl=multi_label_lvl,
                                   model_name=model_name,
-                                  pretrained=pretrained,
                                   classes=classes,
-                                  ctx=self.ctx,
-                                  rank=rank_idx)
+                                  ctx=self.ctx)
 
-    def setup_net(self, multi_label_lvl, model_name, pretrained, classes, ctx, rank):
-        # Multi-label lvl 1: Binary Relevance Approach
-        # Multi-label lvl 2:  Multi-Label/Multi/Class with sigmoid activation function and binary cross entropy loss
+
+    def setup_net(self, multi_label_lvl, model_name, classes, ctx):
         finetune_net = None
-        if pretrained:
-            if multi_label_lvl == 1:
-                pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
-                finetune_net = get_model(model_name, classes=classes)
-                finetune_net.output.initialize(init.Xavier(), ctx=ctx)
-                finetune_net.output.collect_params().setattr('lr_mult', 10)
-                finetune_net.features = pretrained_net.features
-                finetune_net.collect_params().reset_ctx(ctx)
-                finetune_net.hybridize()
-                self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+        if multi_label_lvl == 1: #separate local level classifiers
+            pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
+            finetune_net = get_model(model_name, classes=classes)
+            finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+            finetune_net.output.collect_params().setattr('lr_mult', 10)
+            finetune_net.features = pretrained_net.features
+            finetune_net.collect_params().reset_ctx(ctx)
+            finetune_net.hybridize()
+            self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
-            if multi_label_lvl == 2: # all-in-one
-                pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
-                finetune_net = BigBangNet(p=5,
-                                          c=11,
-                                          o=27,
-                                          f=46,
-                                          g=68,
-                                          s=166)
-                finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
-                finetune_net.collect_params().setattr('lr_mult', 10)
-                finetune_net.feature = pretrained_net.features
-                finetune_net.hybridize()
-                self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+        if multi_label_lvl == 2: # all-in-one/big bang classifiers
+            pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
+            finetune_net = BigBangNet(p=5,
+                                      c=11,
+                                      o=27,
+                                      f=46,
+                                      g=68,
+                                      s=166)
+            finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
+            finetune_net.collect_params().setattr('lr_mult', 10)
+            finetune_net.feature = pretrained_net.features
+            finetune_net.hybridize()
+            self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
 
 
-            if multi_label_lvl == 3: # hierarchical
-                pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
-                finetune_net = get_model(model_name, classes=classes)
-                finetune_net.output.initialize(init.Xavier(), ctx=ctx)
-                finetune_net.features = pretrained_net.features
-                # The model parameters in output will be updated using a learning rate ten
-                # times greater
-                finetune_net.output.collect_params().setattr('lr_mult', 10)
-                finetune_net.collect_params().reset_ctx(ctx)
-                finetune_net.hybridize()
-                self.loss_fn = JannisLoss(rank)
+        if multi_label_lvl == 3: # hierarchical/chained local level classifiers
+            pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
+            finetune_net = get_model(model_name, classes=classes)
+            finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+            finetune_net.output.collect_params().setattr('lr_mult', 10)
+            finetune_net.features = pretrained_net.features
+            finetune_net.collect_params().reset_ctx(ctx)
+            finetune_net.hybridize()
+            self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
+
         return finetune_net
+
+    def add_layer(self, prior_param, rank_idx, classes):
+        # updates rank_idx and loads the parameters for the best previous net and adds a new layer
+        ################
+        self.rank = rank_idx
+        self.net.load_parameters(prior_param)
+        net = gluon.nn.HybridSequential()
+        with net.name_scope():
+            net.add(self.net)
+            net.add(gluon.nn.Dense(classes))
+        # initialize the parameters
+        net.collect_params().initialize()
+        # finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+        net.collect_params().setattr('lr_mult', 10)
+        net.collect_params().reset_ctx(self.ctx)
+        net.hybridize()
+        self.net = net
 
     def metric_str(self, names, accs):
         # return metrics string representation
@@ -202,6 +216,7 @@ class ModelHandler:
             list_val_acc = []
             list_epochs = []
         for epoch in range(epochs):
+            prev_score_val = 0
             tic = time.time()
             btic = time.time()
             if self.multi_label_lvl == 2:
@@ -218,7 +233,10 @@ class ModelHandler:
                 # data = gluon.utils.split_and_load(batch.data, ctx_list=ctx, batch_axis=0, even_split=False)
                 # label = gluon.utils.split_and_load(batch.label, ctx_list=ctx, batch_axis=0, even_split=False)
                 data = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
-                label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
+                if self.multi_label_lvl == 3:
+                    label = gluon.utils.split_and_load(batch.label[0][:, self.rank], ctx_list=ctx, batch_axis=0, even_split=False)
+                else:
+                    label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 if self.multi_label_lvl == 2:
                     l0 = list()
                     l1 = list()
@@ -331,6 +349,9 @@ class ModelHandler:
                 acc_names, acc_val = self.evaluate(net, val_iter, ctx, acc_metric).get()
                 print('\t[Fold %d Epoch %d] validation: %s'%(fold, epoch, self.metric_str(val_names, score_val)))
                 print('\t[Fold %d Epoch %d] validation: %s' % (fold, epoch, self.metric_str(acc_name, acc_val)))
+                if score_val > prev_score_val:
+                    prev_score_val = score_val
+                    self.best_model = param_file_name.split('.')[0]+'_e'+str(epoch)+'_f'+str(fold)+'.param'
 
 
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
