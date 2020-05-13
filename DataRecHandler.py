@@ -5,7 +5,7 @@ from mxnet.gluon.data.vision import transforms
 # from mxnet.gluon.data import RecordFileDataset
 from mxnet import gluon, image
 from mxnet.io import ImageRecordIter
-import subprocess
+import mxnet as mx
 from io import StringIO
 from Im2Rec import Im2Rec
 
@@ -638,19 +638,26 @@ class DataRecHandler:
             path_imgrec=train_rec_path,
             path_imgidx=train_idx_path,
             path_imglist=train_lst_path,
+            aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
             data_shape=(3, 224, 224),
+            # data_shape=(3, 356, 356),
             batch_size=self.batch_size,
-            # batch_size=batch_size,
+            # random_resized_crop=True,
+            # max_crop_size=356,
+            # min_crop_size=356,
+            resize=224,
             label_width=label_width,
+            # inter_method=0,
             shuffle=True  # train true, test no
         )
         self.test_data = ImageRecordIter(
             path_imgrec=test_rec_path,
             path_imgidx=test_idx_path,
             path_imglist=test_lst_path,
+            aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
             data_shape=(3, 224, 224),
             batch_size=self.batch_size,
-            # batch_size=batch_size,
+            resize=224,
             label_width=label_width,
             shuffle=shuffle_test  # train true, test no
         )
@@ -665,19 +672,21 @@ class DataRecHandler:
                 # transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
                 #                              saturation=jitter_param),
                 # transforms.RandomLighting(lighting_param),
+                transforms.Resize((224,224)),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         elif mode == 'test':
             transform = transforms.Compose([
-                # transforms.Resize(256),
+                transforms.Resize((224,224)),
                 # transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         elif mode == 'resample':
             transform = transforms.Compose([
-                transforms.RandomResizedCrop(224),
+                # transforms.RandomResizedCrop(224),
+                transforms.RandomResizedCrop((224,224)),
                 transforms.RandomFlipLeftRight(),
                 transforms.RandomFlipTopBottom(),
                 transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
