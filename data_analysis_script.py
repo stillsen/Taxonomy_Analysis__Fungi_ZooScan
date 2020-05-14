@@ -15,22 +15,6 @@ import os.path
 from os import path
 from collections import Counter
 
-def load_ncbi():
-    # file_name = '/home/stillsen/Documents/Uni/MasterArbeit/TaxonomicImageClassifier/ncbi_db.pickle'
-    #
-    # if not path.exists(file_name):
-    #     print('creating local ncbi db ...')
-    #     ncbi = NCBITaxa()
-    #     ncbi.update_taxonomy_database()
-    #     pickle.dump(ncbi, open(file_name, 'wb'))
-    # else:
-    #     print('loading local ncbi db ...')
-    #     ncbi = pickle.load(open(file_name,'rb'))
-    # print('ncbi loaded')
-    ncbi = NCBITaxa()
-    # ncbi.update_taxonomy_database()
-    return ncbi
-
 def tax_distr(df):
     return []
 
@@ -61,135 +45,6 @@ def prepare_fun_df(df, higher_taxonomic_groups = ['kingdom', 'phylum', 'class', 
             df.ix[index, 'rank'] = rank
             if not pd.isnull(df['taxon'][index]):
                 break
-    return df
-
-def prepare_zoo_df(csv_path, na_values):
-    df = pd.read_csv(csv_path, na_values=na_values)
-    file = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/zoo_df.csv'
-    file_ur = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/zoo_unique_ranks_df.csv'
-
-    if not path.exists(file):
-        # load ncbi database
-        ncbi = load_ncbi()
-        print('df size before clean %s'%(len(df)))
-        #add all morphotypes to na and drop them, as atm I don't know how to handle them
-        prev_taxon = ''
-        for index, row in df.iterrows():
-            # print('cleaning row %s' %index)
-            taxon = row['taxon']
-            #is already nan
-            if pd.isna(taxon):
-                continue
-            if prev_taxon != taxon:
-                prev_taxon = taxon
-                # some weird value which isn't string
-                if not isinstance(taxon, str):
-                    na_values.append(taxon)
-                    print('type: %s'%taxon)
-                    continue
-                # if taxon contains '__' it is a morphotype and taxon is not equal to the one in the prev row
-                if len(taxon.split('__'))>1:
-                    print('morphology %s' %taxon)
-                    na_values.append(taxon)
-
-        #reload df with updated na_values and drop them
-        print('reloading df')
-        df = pd.read_csv(csv_path, na_values=na_values)
-        print('dropping na')
-        df = df.dropna()
-        print('df size after clean %s' % (len(df)))
-
-        #split lineage at '/', sort out all 'non-living', add rank
-        #split
-        df['lineage'] = df['lineage'].apply(split_lineage)
-
-        # maximum linaeage, -3 because -'', -'#' and -'living'
-        max_lineage = max(df['lineage'].apply(len))-3
-        print('maximum lineage found: %s'%max_lineage)
-
-        # taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
-
-        #sort out 'non-livning' by adding easily accessible column 'living'
-        #create array
-        living = [True if x[2]=='living' else False for x in df['lineage']]
-        #and add as Series to df['living']
-        df['living'] = pd.Series(living)
-        #df of all living organisms
-        living_df = df.loc[df['living']==True]
-
-        # ------------------------------
-        # #feed each taxon into ncbi db to get rank
-        # #if previous row has equal taxon, just copy the rank
-        # #first write all ranks into a list, attach this list as column in the end (speed up)
-        # prev_taxon = ''
-        # prev_rank = ''
-        # ranks = []
-        # for index, row in df.iterrows():
-        #     print('updating rank in row: %s'%index)
-        #     taxon = row['taxon']
-        #     if prev_taxon == taxon:
-        #         #copy rank
-        #         # df['rank'][index] = prev_rank
-        #         ranks.append(prev_rank)
-        #     else:
-        #         # look up taxon rank at ncbi and store it
-        #         name2taxid = ncbi.get_name_translator([taxon])
-        #         taxid = name2taxid[taxon]
-        #         taxid2rank = ncbi.get_rank(taxid)
-        #         # df['rank'][index] = taxid2rank[taxid[0]]
-        #         rank = taxid2rank[taxid[0]]
-        #         #replace curiosities like infrorder, subclass...
-        #         if rank == 'subclass':
-        #             rank = 'class'
-        #         if rank == 'infraorder':
-        #             rank = 'order'
-        #         if rank == 'suborder':
-        #             rank = 'order'
-        #         ranks.append(rank)
-        #         prev_rank = rank
-        #     prev_taxon = taxon
-        # --------------------------------
-        # feed the whole lineage into ncbi db to get a list of ranks
-        ranks = []
-        rank = []
-        unique_zoo_ranks = []
-        for index, row in df.iterrows():
-            print('updating rank in row: %s' % index)
-            lineage = row['lineage']
-
-            # dictionary that maps taxon name to ncbi_tax_id
-            name2taxid = ncbi.get_name_translator(lineage)
-            # loop over lineage and look up each listed taxon rank at ncbi and store it in a list
-            lineage_ranks = []
-            for taxon in lineage[4:]:
-                try:
-                    tax_id = name2taxid[taxon]
-                    taxid2rank = ncbi.get_rank(tax_id)
-                    lineage_ranks.append(taxid2rank[tax_id[0]])
-                    unique_zoo_ranks = list(unique_zoo_ranks)
-                    unique_zoo_ranks.extend(lineage_ranks)
-                except:
-                    lineage_ranks.append('')
-            unique_zoo_ranks = set(unique_zoo_ranks)
-            ranks.append(lineage_ranks)
-            rank.append(lineage_ranks[-1])
-        print('adding ranks to df')
-        df['ranks'] = pd.Series(ranks)
-        df['rank'] = pd.Series(rank)
-        df = df.dropna()
-        print('saving df')
-        df.to_csv(file)
-
-        # df_ur = pd.DataFrame()
-        # df_ur['unique_ranks'] = pd.Series(list(unique_zoo_ranks))
-        # df_ur.to_csv(file_ur)
-        print('ranks in zoo ds: %s' % list(unique_zoo_ranks))
-    else:
-        df = pd.read_csv(file, na_values=missing_values_zoo)
-        # unique_zoo_ranks = pd.read_csv(file_ur)
-        # unique_zoo_ranks = list(unique_zoo_ranks['unique_ranks'])
-        #load
-
     return df
 
 def split_lineage(str):
@@ -369,13 +224,15 @@ def plot_fun(df_fun, figure_path):
     fig_file = os.path.join(figure_path, 'data__rank_dist_-_fds.png')
     plt.savefig(fig_file, bbox_inches='tight')
 
-def plot_fun_classification(storage_path,  figure_path, epochs):
+def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
     print('plot fun classification')
 
-    storage_folder = 'ParameterFiles_densenet169_e%i_lr0.001000_m0.800000'%epochs
-    storage_path = os.path.join(storage_path,storage_folder)
-    dataset = 'fun'
-    mode = 'per_lvl'
+    # storage_folder = 'ParameterFiles_densenet169_e%i_lr0.001000_m0.800000'%epochs
+    # storage_path = os.path.join(storage_path,storage_folder)
+    # dataset = 'fun'
+    # mode = 'per_lvl'
+
+    subdirs = [x[0] for x in os.walk(path)][1:]
 
     # color coding taxonomic ranks
     taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
@@ -383,227 +240,407 @@ def plot_fun_classification(storage_path,  figure_path, epochs):
 
     cc = [taxonomic_groups_to_color[x] for x in taxonomic_groups]
     #receive color map
-    cmap = plt.cm.get_cmap('Dark2', 6)
+    cmap = plt.cm.get_cmap(name='Dark2', lut=6)
+    # cmap = plt.cm.get_cmap(name='Paired', lut=12)
     #encode cc in cmap
     colors = cmap(cc)
+    # colors = cmap.colors
 
-    ### plot fun score over epochs - per lvl
+    # all SL
     fig = plt.figure(figsize=(15, 10))
     subplot = 1
-    for i, rank in enumerate(taxonomic_groups):
-        # read csv stored classification score
-        csv_file_name = '%s_%s_%s.csv' % (dataset, mode, rank)
-        csv_file_path = os.path.join(storage_path,csv_file_name)
-        print('reading %s'%csv_file_path)
-        df = pd.read_csv(csv_file_path)
-        df['x'] = range(0,len(df))
+    # abc = iter(['a','b','c','d'])
+    abc = iter(['a) original', 'b) simple oversampled', 'c) transform oversampled', 'd'])
+    l = []
+    firstrun = True
+    for subdir in sorted(subdirs):
+        print('working in %s'%subdir)
+        if subdir.split('/')[-1] != 'figures' and 'ML' not in subdir.split('/')[-1] and 'oversamplebias' not in subdir.split('/')[-1]:
+            ax = fig.add_subplot(2, 2, subplot)
 
-        title = str(rank)
-
-        ax = fig.add_subplot(2, 3, subplot)
-        line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
-        line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
-
-        plt.ylim(-1, 1)
-        plt.tick_params(
-            axis='x',  # changes apply to the x-axis
-            which='both',  # both major and minor ticks are affected
-            #bottom=False,  # ticks along the bottom edge are off
-            top=False,  # ticks along the top edge are off
-            #labelbottom=False
-            )
-
-        # removing top and right borders
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        # title
-        ax.text(.9, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
-        # adds major gridlines
-        ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
-        plt.yticks([-1,-0.5,0,0.5,1])
-        plt.xticks([0, 20])
-        #add a legend
-        # ax.legend([line_train, line_test], ['train','test'])
-        if subplot == 1:
-            ax.legend()
-
-        subplot+=1
-            # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
-    plt.tight_layout()
-    fig_file = os.path.join(figure_path, 'results__classification_scores_per_lvl-PCC_x_20epochs_-_fds.png')
-    plt.savefig(fig_file, bbox_inches='tight')
+            # title = next(abc)
+            title = next(abc) #+') '+ subdir.split('/')[-1].split('_')[1] +' '+ subdir.split('/')[-1].split('_')[2]
+            i = 0
+            if 'tt-split' in subdir.split('/')[-1]:
+                for file in [x[-1] for x in os.walk(subdir)][0]:
+                    if metric == 'acc':
+                        if 'acc' in file:
+                            print('reading %s'%file)
+                            df = pd.read_csv(os.path.join(subdir,file))
+                            line_train, = plt.plot('epochs', 'acc_train', data=df, marker='', color=colors[i],
+                                                   linewidth=1, label=file.split('_')[-2])
+                            line_test, = plt.plot('epochs', 'acc_test', data=df, marker='', color=colors[i],
+                                                  linewidth=1)
+                        else: continue
+                    else:
+                        if 'acc' not in file:
+                            print('reading %s'%file)
+                            df = pd.read_csv(os.path.join(subdir,file))
+                            line_train, = plt.plot('epochs', 'scores_train', data=df, marker='', color=colors[i],
+                                                   linewidth=1, label=file.split('_')[-2])
+                            line_test, = plt.plot('epochs', 'scores_test', data=df, marker='', color=colors[i],
+                                                  linewidth=1)
+                        else: continue
 
 
-    # ### plot fun score over epochs - all-in-one
-    # fig, ax = plt.subplots(figsize=(15, 6))
-    #
-    # # read csv stored classification score
-    # mode = 'all-in-one'
-    # csv_file_name = '%s_%s.csv' % (dataset, mode)
-    # csv_file_path = os.path.join(storage_path,csv_file_name)
-    # print('reading %s' % csv_file_path)
-    # df = pd.read_csv(csv_file_path)
-    #
-    # df['x'] = range(0,len(df))
-    # title = 'all in one'
-    #
-    # # ax = fig.add_subplot(2, 3, subplot)
-    # line_train = plt.plot('x', 'scores_train', data=df, marker='', color=colors[0], linewidth=2, label="train")
-    # line_test = plt.plot('x', 'scores_test', data=df, marker='', color=colors[-1], linewidth=2, label="test")
-    #
-    # plt.tick_params(
-    #     axis='x',  # changes apply to the x-axis
-    #     which='both',  # both major and minor ticks are affected
-    #     bottom=False,  # ticks along the bottom edge are off
-    #     top=False,  # ticks along the top edge are off
-    #     labelbottom=False)
-    #
-    # # removing top and right borders
-    # ax.spines['top'].set_visible(False)
-    # ax.spines['right'].set_visible(False)
-    # # title
-    # ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
-    # #add a legend
-    # # ax.legend('scores_train','scores_test')
-    # # ax.legend([line_train, line_test], ['train', 'test'])
-    # ax.legend()
-    #
-    # plt.tight_layout()
-    # fig_file = os.path.join(figure_path, 'scores_all-ine-one_-_fds.png')
-    # plt.savefig(fig_file, bbox_inches='tight')
+                    i+=1
+                    if firstrun: l.append(line_train)
+                firstrun = False
+            elif 'xval' in subdir.split('/')[-1]:
+                d = dict()
+                for file in [x[-1] for x in os.walk(subdir)][0]:
+                    if (metric == 'acc' and 'acc' in file):
+                        print('reading %s' % file)
+                        if file.split('_')[-4] not in d:
+                            d[file.split('_')[-4]] = pd.read_csv(os.path.join(subdir, file))
+                        else:
+                            d[file.split('_')[-4]] = pd.concat(
+                                (d[file.split('_')[-4]], pd.read_csv(os.path.join(subdir, file))))
+                    if (metric == 'pcc' and 'acc' not in file):
+                        print('reading %s'%file)
+                        if file.split('_')[-2] not in d:
+                            d[file.split('_')[-2]] = pd.read_csv(os.path.join(subdir,file))
+                        else:
+                            d[file.split('_')[-2]] = pd.concat((d[file.split('_')[-2]], pd.read_csv(os.path.join(subdir,file))))
+                dodge = 0
+                for key, value in d.items(): # loop over ranks
+                    by_row_index = value.groupby(value.index)
+                    d[key] = by_row_index.mean()
+                    d[key]['epochs'] = d[key]['epochs']+dodge
+                    dodge+=0.05
+                    if metric == 'pcc':
+                        d[key]['train_sem'] = by_row_index.sem()['scores_train']
+                        d[key]['test_sem'] = by_row_index.sem()['scores_test']
+                        line_train = plt.errorbar('epochs', 'scores_train', yerr='train_sem', data=d[key], marker='', color=colors[i], linewidth=1)
+                        line_test = plt.errorbar('epochs', 'scores_test', yerr='test_sem', data=d[key], marker='', color=colors[i], linewidth=1)
+                    elif metric == 'acc':
+                        d[key]['train_sem'] = by_row_index.sem()['acc_train']
+                        d[key]['test_sem'] = by_row_index.sem()['acc_test']
+                        line_train = plt.errorbar('epochs', 'acc_train', yerr='train_sem', data=d[key], marker='',
+                                                  color=colors[i], linewidth=1)
+                        line_test = plt.errorbar('epochs', 'acc_test', yerr='test_sem', data=d[key], marker='',
+                                                 color=colors[i], linewidth=1)
+                    i+=1
 
-def plot_zoo(df_zoo):
-    print('plot zoo')
-    ##plot fun: taxonomic classes vs count with taxonomic rank colorcoded
-    # classes
-    x_zoo = df_zoo['taxon'].value_counts().index.tolist()
-    # count
-    y_zoo = df_zoo['taxon'].value_counts()
+
+            if metric == 'acc':
+                ax.set_ylabel('ACC', fontsize=12)
+                plt.ylim(0, 1)
+                plt.yticks([0, 0.25, 0.5, 1])
+                # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
+            else:
+                ax.set_ylabel('PCC/MCC', fontsize=12)
+                plt.ylim(-1, 1)
+                plt.yticks([-1, -0.5, 0, 0.1, 0.25, 0.5, 1])
+                # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
+            plt.xticks([0, 5, 10, 15, 20])
+            ax.set_xlabel('epochs', fontsize=12)
+
+            plt.tick_params(
+                axis='x',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                #bottom=False,  # ticks along the bottom edge are off
+                top=False,  # ticks along the top edge are off
+                #labelbottom=False
+                )
+
+            # removing top and right borders
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            # title
+            if subplot == 1:
+                ax.text(.92, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+            else:
+                ax.text(.84, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+
+            # adds major gridlines
+            ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.6)
+
+            #add a legend
+            # ax.legend([line_train, line_test], ['train','test'])
+            if subplot == 1:
+                # ax = fig.add_subplot(2, 2, subplot)
+                ax.legend(l,taxonomic_groups)
+            subplot += 1
+
+            plt.tight_layout()
+            fig_file = os.path.join(figure_path, 'performancePlot_SL_'+metric+'.png')
+            # fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
+            plt.savefig(fig_file, bbox_inches='tight')
+
+def plot_fun_classificationML(path, figure_path, metric='pcc'):
+    print('plot fun classification')
+
+    # storage_folder = 'ParameterFiles_densenet169_e%i_lr0.001000_m0.800000'%epochs
+    # storage_path = os.path.join(storage_path,storage_folder)
+    # dataset = 'fun'
+    # mode = 'per_lvl'
+    plot_length = 60
+
+    subdirs = [x[0] for x in os.walk(path)][1:]
 
     # color coding taxonomic ranks
-    taxonomic_groups = ['phylum', 'class', 'subclass', 'order', 'suborder', 'infraorder', 'family', 'genus', 'species']
-    taxonomic_groups_to_color = { 'phylum': 0.9,
-                                  'class': 0.8,
-                                  'subclass': 0.7,
-                                  'order': 0.6,
-                                  'suborder':0.5,
-                                  'infraorder':0.4,
-                                  'family': 0.3,
-                                  'genus': 0.2,
-                                  'species': 0.1}
-    # taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-    # taxonomic_groups_to_color = { 'phylum': 0.857, 'class': 0.714, 'order': 0.571, 'family': 0.429,
-    #                              'genus': 0.286, 'species': 0.143}
-    #get maximum classification class
-    rank = [df_zoo.loc[df_zoo['taxon'] == x]['rank'].tolist()[0] for x in x_zoo]
-    #color code maximum classification class
-    cc = [taxonomic_groups_to_color[x] for x in rank]
-    #receive color map
-    cmap = plt.cm.get_cmap('tab10', 9)
-    #encode cc in cmap
-    colors = cmap(cc)
+    taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    tcn = ['Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+    taxonomic_groups_to_color = {'phylum': 0.857142857142857, 'class': 0.714285714285714,
+                                 'order': 0.571428571428571, 'family': 0.428571428571429,
+                                 'genus': 0.285714285714286, 'species': 0.142857142857143}
 
-    title = 'Taxonomic Distribution - ZooScan Dataset'
-    plot_taxon_dist(x=x_zoo,
-                    y=y_zoo,
-                    rank=rank,
-                    cc=cc,
-                    cmap=cmap,
-                    colors=colors,
-                    taxonomic_groups=taxonomic_groups,
-                    taxonomic_groups_to_color=taxonomic_groups_to_color,
-                    title=title,
-                    offset=-1/20)
-    plt.savefig('Taxonomic_Distribution_-_ZooScan_Dataset.png', bbox_inches='tight')
-    ##plot zoo:  classes vs count with taxonomic rank colorcoded
-    #value count of rank
-    raw_class_count = df_zoo['rank'].value_counts()
-    #transform to value count of rank according to taxonomic_groups ordering with 0 if no entry
-    class_count = [raw_class_count[c] if c in raw_class_count else 0 for c in taxonomic_groups]
-    #color encode
     cc = [taxonomic_groups_to_color[x] for x in taxonomic_groups]
-    cmap = plt.cm.get_cmap('tab10', 9)
+    # receive color map
+    cmap = plt.cm.get_cmap(name='Dark2', lut=6)
+    # cmap = plt.cm.get_cmap(name='Paired', lut=12)
+    # encode cc in cmap
     colors = cmap(cc)
+    # colors = cmap.colors
 
-    title = 'Class Distribution - ZooScan Dataset'
-    plot_class_dist(x=taxonomic_groups,
-                    y=class_count,
-                    colors=colors,
-                    title=title)
-    plt.tight_layout()
-    plt.savefig('Class_Distribution_-_ZooScan_Dataset.png', bbox_inches='tight')
-    ##plot fun:  single class distribution with taxonomic rank colorcoded
+    # all SL
     fig = plt.figure(figsize=(15, 10))
-    # fig.subplots_adjust(hspace=0.4, wspace=0.4)
     subplot = 1
-    for i, taxa in enumerate(taxonomic_groups):
-        # title = '%s Distribution - Fungi Dataset'%taxa
-        title=""
-        #get sub dataframe where rank = taxa
-        sub_df = df_zoo.loc[df_zoo['rank']==taxa]
-        #set color accordingly
-        color = colors[i]
-        #get counts and plot
-        if len(sub_df)>0:
-            x = sub_df['taxon'].value_counts().index.tolist()
-            # count
-            y = sub_df['taxon'].value_counts()
-            # ax = fig.add_subplot(2, 3, subplot)
-            ax = fig.add_subplot(5, 3, subplot)
-            plot_class_dist(x=x,
-                            y=y,
-                            colors=color,
-                            title=title,
-                            ax=ax)
-            subplot+=1
-            # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
-    plt.tight_layout()
-    plt.savefig('Within_Class_Distribution_-_ZooScan_Dataset.png', bbox_inches='tight')
+    abc = iter(['a) original', 'b) simple oversampled', 'c) transform oversampled', 'd'])
+    l = []
+    firstrun = True
+    for subdir in sorted(subdirs):
+        print('working in %s' % subdir)
+        if subdir.split('/')[-1] != 'figures' and 'SL' not in subdir.split('/')[-1] and 'oversamplebias' not in subdir.split('/')[-1]:
+            ax = fig.add_subplot(2, 2, subplot)
+
+            # title = next(abc)
+            title = next(abc) #+ ') ' + subdir.split('/')[-1].split('_')[1] + ' ' + subdir.split('/')[-1].split('_')[2]
+            i = 0
+            if 'tt-split' in subdir.split('/')[-1]:
+                for file in [x[-1] for x in os.walk(subdir)][0]:
+                    if metric == 'acc':
+                        if 'acc' in file:
+                            print('reading %s' % file)
+                            df = pd.read_csv(os.path.join(subdir, file))
+                            for rank in range(6):
+                                col_name = '%s_Train_ACC'%tcn[rank]
+                                print(col_name)
+                                line_train, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank],linewidth=1, label=tcn[rank])
+                                l.append(line_train)
+                                col_name = '%s_Test_ACC' % (tcn[rank])
+                                line_test, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1, label=tcn[rank])
+                        else:
+                            continue
+                    else:
+                        if 'acc' not in file:
+                            print('reading %s' % file)
+                            df = pd.read_csv(os.path.join(subdir, file))
+                            for rank in range(6):
+                                col_name = '%s_Train_PCC'%tcn[rank]
+                                print(col_name)
+                                line_train, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank],linewidth=1, label=tcn[rank])
+                                l.append(line_train)
+                                col_name = '%s_Test_PCC' % (tcn[rank])
+                                line_test, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1, label=tcn[rank])
+
+
+                        else:
+                            continue
+
+                    i += 1
+                    # if firstrun: l.append(line_train)
+                firstrun = False
+            elif 'xval' in subdir.split('/')[-1]:
+                d = dict()
+                for file in [x[-1] for x in os.walk(subdir)][0]:
+                    if (metric == 'acc' and 'acc' in file):
+                        print('reading %s' % file)
+                        if file.split('_')[-4] not in d:
+                            d[file.split('_')[-4]] = pd.read_csv(os.path.join(subdir, file))
+                        else:
+                            d[file.split('_')[-4]] = pd.concat(
+                                (d[file.split('_')[-4]], pd.read_csv(os.path.join(subdir, file))))
+                    if (metric == 'pcc' and 'acc' not in file):
+                        print('reading %s' % file)
+                        if file.split('_')[-2] not in d:
+                            d[file.split('_')[-2]] = pd.read_csv(os.path.join(subdir, file))
+                        else:
+                            d[file.split('_')[-2]] = pd.concat(
+                                (d[file.split('_')[-2]], pd.read_csv(os.path.join(subdir, file))))
+                dodge = 0
+                for key, value in d.items():  # loop over ranks
+                    by_row_index = value.groupby(value.index)
+                    d[key] = by_row_index.mean()
+                    d[key]['Epochs'] = d[key]['Epochs'] + dodge
+                    dodge += 0.05
+                    if metric == 'pcc':
+                        for rank in range(6):
+                            col_name = '%s_Train_PCC' % tcn[rank]
+                            sem_name = '%s_Train_SEM' % tcn[rank]
+                            d[key][sem_name] = by_row_index.sem()[col_name]
+                            print(col_name)
+                            line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1)
+
+                            col_name = '%s_Test_PCC' % (tcn[rank])
+                            sem_name = '%s_Test_SEM' % tcn[rank]
+                            d[key][sem_name] = by_row_index.sem()[col_name]
+                            line_test = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='',color=colors[rank], linewidth=1)
+                    elif metric == 'acc':
+                        for rank in range(6):
+                            col_name = '%s_Train_ACC' % tcn[rank]
+                            sem_name = '%s_Train_SEM' % tcn[rank]
+                            d[key][sem_name] = by_row_index.sem()[col_name]
+                            print(col_name)
+                            line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1)
+
+                            col_name = '%s_Test_ACC' % (tcn[rank])
+                            sem_name = '%s_Test_SEM' % tcn[rank]
+                            d[key][sem_name] = by_row_index.sem()[col_name]
+                            line_test = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='',color=colors[rank], linewidth=1)
+                    i += 1
+
+            if metric == 'acc':
+                ax.set_ylabel('ACC', fontsize=12)
+                plt.ylim(0, 1)
+                plt.yticks([0, 0.25, 0.5, 1])
+                # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
+            else:
+                ax.set_ylabel('PCC/MCC', fontsize=12)
+                plt.ylim(-1, 1)
+                plt.yticks([-1, -0.5, 0, 0.1, 0.25, 0.5, 1])
+                # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
+            plt.xticks([0, 5, 10, 15, 20])
+            ax.set_xlabel('epochs', fontsize=12)
+
+            plt.tick_params(
+                axis='x',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                # bottom=False,  # ticks along the bottom edge are off
+                top=False,  # ticks along the top edge are off
+                # labelbottom=False
+            )
+
+            # removing top and right borders
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            # title
+            if subplot == 1:
+                ax.text(.92, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+            else:
+                ax.text(.84, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+
+            # adds major gridlines
+            ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.6)
+
+            # add a legend
+            # ax.legend([line_train, line_test], ['train','test'])
+            if subplot == 1:
+                taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+                ax.legend(l, taxonomic_groups)
+            subplot += 1
+
+            plt.tight_layout()
+            # fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
+            plt.savefig(fig_file, bbox_inches='tight')
+
+def get_comparisonDF(path, metric):
+    df_cmp = pd.DataFrame(columns=['Score','Metric','Dataset','Model','Rank'])
+
+    subdirs = [x[0] for x in os.walk(path)][1:]
+    for subdir in sorted(subdirs):
+        if 'orig' in subdir.split('/')[-1]: dataset = 'orig'
+        elif 'naiveOversampled' in subdir.split('/')[-1]: dataset = 'naiveOversampled'
+        elif 'transformOversampled' in subdir.split('/')[-1]: dataset = 'transformOversampled'
+
+        if 'SL' in subdir:
+            model = 'SL'
+        if 'HC' in subdir:
+            model = 'HC'
+        if 'SL' in subdir or 'HC' in subdir:
+            for file in [x[-1] for x in os.walk(subdir)][0]:
+                if metric == 'acc':
+                    if 'acc' in file:
+                        print('reading %s' % file)
+                        df = pd.read_csv(os.path.join(subdir, file))
+                    else:
+                        continue
+                else:
+                    if 'acc' not in file: # PCC
+                        print('reading %s' % file)
+                        df = pd.read_csv(os.path.join(subdir, file))
+                    else:
+                        continue
+                score = df['scores_test'].max()
+                rank = file.split('_')[-2]
+                df_cmp = df_cmp.append({'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': rank},ignore_index=True)
+
+        elif 'ML' in subdir:
+            model = 'ML'
+            for file in [x[-1] for x in os.walk(subdir)][0]:
+                if metric == 'acc':
+                    if 'acc' in file:
+                        print('reading %s' % file)
+                        df = pd.read_csv(os.path.join(subdir, file))
+                    else:
+                        continue
+                else:
+                    if 'acc' not in file:  # PCC
+                        print('reading %s' % file)
+                        df = pd.read_csv(os.path.join(subdir, file))
+                        score = df['Phylum_Test_PCC'].max()
+                        df_cmp = df_cmp.append(
+                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'phylum'},
+                            ignore_index=True)
+                        score = df['Class_Test_PCC'].max()
+                        df_cmp = df_cmp.append(
+                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'class'},
+                            ignore_index=True)
+                        score = df['Order_Test_PCC'].max()
+                        df_cmp = df_cmp.append(
+                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'order'},
+                            ignore_index=True)
+                        score = df['Family_Test_PCC'].max()
+                        df_cmp = df_cmp.append(
+                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'family'},
+                            ignore_index=True)
+                        score = df['Genus_Test_PCC'].max()
+                        df_cmp = df_cmp.append(
+                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'genus'},
+                            ignore_index=True)
+                        score = df['Species_Test_PCC'].max()
+                        df_cmp = df_cmp.append(
+                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'species'},
+                            ignore_index=True)
+                    else:
+                        continue
+    return df_cmp
+
+def comparisonPlot(path, figure_path, metric='pcc'):
+    # get data
+    df = get_comparisonDF(path,metric)
+    df.to_csv(os.path.join(path,'comparisonPlot.csv'))
+    # GGPLOT2 HERE WE COME
+    # subdirs = [x[0] for x in os.walk(path)][1:]
 
 
 
 # pathes to datasets that need to be analyzed and taxonomic classification file
 # path_fun = '/home/stillsen/Documents/Data/Image_classification_soil_fungi'
-path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
-tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
+# path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
+# tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 
-epochs = 20
-storage_path = '/media/stillsen/Elements SE/Data/'
+# epochs = 20
+# storage_path = '/media/stillsen/Elements SE/Data/'
 
-path_zoo = '/home/stillsen/Documents/Data/ZooNet/ZooScanSet'
-tax_file_zoo = 'taxa.csv'
-
-figure_path = '/home/stillsen/Documents/Uni/MasterArbeit/Source/Taxonomy_Analysis__Fungi_ZooScan/figures'
-
+# path='/home/stillsen/Documents/Data/Results/PerformancePlot_SL'
+path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
+# path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
+# path='/home/stillsen/Documents/Data/Results/StabilityPlot_SL'
 #missing value definition
 missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
-missing_values_zoo = ['',
-                      'artefact',
-                      'bubble',
-                      'detritus',
-                      'seaweed',
-                      'head',
-                      'megalopa',
-                      'Rhincalanidae',
-                      'cirrus',
-                      'metanauplii',
-                      'cyphonaute',
-                      'scale',
-                      'Pyrosomatida',
-                      'ephyra']
 
-# getting Dataframe for Fungi and Zoo
-csv_path = os.path.join(path_fun, tax_file_fun)
-df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
-# #add column taxon and rank, s.a.
-df_fun = prepare_fun_df(df_fun)
-
-# csv_path = os.path.join(path_zoo, tax_file_zoo)
-# df_zoo = prepare_zoo_df(csv_path, na_values=missing_values_zoo)
-
+# # getting Dataframe for Fungi and Zoo
+# csv_path = os.path.join(path_fun, tax_file_fun)
+# df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
+# # #add column taxon and rank, s.a.
+# df_fun = prepare_fun_df(df_fun)
 
 # ## figures
-plot_fun(df_fun=df_fun,figure_path=figure_path)
-plot_fun_classification(storage_path=storage_path,  figure_path=figure_path, epochs=epochs)
-# plot_zoo(df_zoo)
+#plot_fun(df_fun=df_fun,figure_path=figure_path)
+# plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
+comparisonPlot(path=path, figure_path=path, metric='pcc')
+# plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
 plt.show()
