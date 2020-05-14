@@ -10,7 +10,7 @@ from io import StringIO
 from Im2Rec import Im2Rec
 
 class DataRecHandler:
-    def __init__(self, root_path, rank_name, rank_idx, batch_size, num_workers, k, create_recs=False, oversample_technique='transformed'):
+    def __init__(self, root_path, rank_name, rank_idx, batch_size, num_workers, k, create_recs=False, oversample_technique='transformOversampled'):
         # Parameters
         # path = root path
         # rank is used as /path/rank
@@ -33,12 +33,12 @@ class DataRecHandler:
 
         # self.mode ='_orig_tt-split_SL'
         # self.mode ='_orig_tt-split_ML'
-        # self.mode ='_oversampled_tt-split_SL'
+        self.mode ='_oversampled_tt-split_SL'
         # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'
-        self.mode ='_oversampled_xval_ML'
+        # self.mode ='_oversampled_xval_ML'
 
         self.root_path = root_path
 
@@ -109,41 +109,29 @@ class DataRecHandler:
             if os.path.isdir(os.path.join(self.rank_path, subdir)):
                 self.samples_per_class[subdir] = len(os.listdir(os.path.join(self.rank_path, subdir)))
 
-    def _oversample(self, technique='transformed', max_class_count=None):
-        # technique = 'naive'
+    def _oversample(self, technique='transformOversampled', max_class_count=None):
+        # technique = 'naiveOversampled'
         # technique = 'transformed'
         # technique = 'smote' not implemented yet
         if max_class_count == None:
             max_class_count = self.samples_per_class[max(self.samples_per_class, key=self.samples_per_class.get)]
-        if technique == 'naive':
-            for subdir in self.samples_per_class:
-                subdir_path = os.path.join(self.rank_path,subdir)
-                files = [os.path.join(subdir_path, file) for file in os.listdir(subdir_path)]
-                class_count = self.samples_per_class[subdir]
-                # generate new transformed images of a randomly drawn image until the amount matches that of the max class
-                for i in range(max_class_count - class_count):
-                    if len(files)>0:
-                        rdn_image_file = random.sample(files, 1)[0]
-                        rdn_image = image.imread(rdn_image_file)
-                        file_name = rdn_image_file[:-4] + '__oversampled_naive__' + str(i) + '.png'
-                        cv2.imwrite(file_name, rdn_image.asnumpy())
-        if technique == 'transformed':
-            for subdir in self.samples_per_class:
-                subdir_path = os.path.join(self.rank_path,subdir)
-                files = [os.path.join(subdir_path, file) for file in os.listdir(subdir_path)]
-                class_count = self.samples_per_class[subdir]
-                # generate new transformed images of a randomly drawn image until the amount matches that of the max class
-                print(subdir_path)
-                print('class count '+str(class_count))
-                print('max class count ' + str(max_class_count))
-                for i in range(max_class_count - class_count):
-                    if len(files)>0:
-                        rdn_image_file = random.sample(files, 1)[0]
-                        rdn_image = image.imread(rdn_image_file)
-                        transformer = self.transform(mode='resample')
-                        transformed_image = transformer(rdn_image)
-                        file_name = rdn_image_file[:-4] + '__oversampled_transformed__' + str(i) + '.png'
-                        cv2.imwrite(file_name, transformed_image.asnumpy())
+
+        for subdir in self.samples_per_class:
+            subdir_path = os.path.join(self.rank_path,subdir)
+            files = [os.path.join(subdir_path, file) for file in os.listdir(subdir_path)]
+            class_count = self.samples_per_class[subdir]
+            # generate new transformed images of a randomly drawn image until the amount matches that of the max class
+            print(subdir_path)
+            print('class count '+str(class_count))
+            print('max class count ' + str(max_class_count))
+            for i in range(max_class_count - class_count):
+                if len(files)>0:
+                    rdn_image_file = random.sample(files, 1)[0]
+                    rdn_image = image.imread(rdn_image_file)
+                    transformer = self.transform(mode=technique)
+                    transformed_image = transformer(rdn_image)
+                    file_name = rdn_image_file[:-4] + '__'+ technique +'__' + str(i) + '.png'
+                    cv2.imwrite(file_name, transformed_image.asnumpy())
         if technique == 'smote':
             pass
 
@@ -683,14 +671,26 @@ class DataRecHandler:
                 transforms.ToTensor(),
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
-        elif mode == 'resample':
+        elif mode == 'transformOversampled':
             transform = transforms.Compose([
                 # transforms.RandomResizedCrop(224),
                 transforms.RandomResizedCrop((224,224)),
+                # transforms.Resize((224, 224)),
                 transforms.RandomFlipLeftRight(),
                 transforms.RandomFlipTopBottom(),
                 transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
                                              saturation=jitter_param),
+                transforms.RandomLighting(lighting_param)
+            ])
+        elif mode == 'naiveOversampled':
+            transform = transforms.Compose([
+                # transforms.RandomResizedCrop(224),
+                # transforms.RandomResizedCrop((224,224)),
+                transforms.Resize((224, 224)),
+                transforms.RandomFlipLeftRight(),
+                transforms.RandomFlipTopBottom(),
+                # transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
+                #                              saturation=jitter_param),
                 transforms.RandomLighting(lighting_param)
             ])
         return transform
