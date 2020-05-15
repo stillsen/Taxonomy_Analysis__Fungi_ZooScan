@@ -172,7 +172,7 @@ class ModelHandler:
 
 
 
-    def train(self, train_iter, val_iter, epochs, param_file_name, fold, ext_storage_path=''):
+    def train(self, train_iter, val_iter, epochs, param_file_name, fold, start_epoch=0, load_param_file = None, ext_storage_path=''):
         net = self.net
         ctx = self.ctx
         metric = self.metrics
@@ -215,7 +215,9 @@ class ModelHandler:
             list_train_acc = []
             list_val_acc = []
             list_epochs = []
-        for epoch in range(epochs):
+        if load_param_file is not None:
+            net.load_parameters(load_param_file)
+        for epoch in range(start_epoch, epochs):
             prev_score_val = 0
             tic = time.time()
             btic = time.time()
