@@ -20,9 +20,11 @@ df <- read.table(abs_filename, sep=',', header=TRUE, stringsAsFactors = TRUE)
 # attach to search path for easier variable access
 attach(df)
 
-# ggplot()+
-#   geom_point(data = df, aes_string(y="Score", x="Rank", colour="Model", group="Model"), position =position_dodge(width = .25))
-ggplot(data = df)+
+df %>%
+  arrange(Rank) %>%
+  mutate(Rank = factor(Rank, levels=c("phylum", "class", "order", "family", "genus", "species")))%>%
+  arrange(Rank)%>%
+ggplot()+
   geom_point(aes_string(y="Score", x="Rank", colour="Model", shape="Dataset", group="Model"), size = 2.5, position =position_dodge(width = .25))
 
 file_name <- paste(path,'/',"comparisonPlot.pdf", sep="")
