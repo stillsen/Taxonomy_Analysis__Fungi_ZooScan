@@ -135,6 +135,7 @@ class ModelHandler:
         net.collect_params().setattr('lr_mult', 10)
         net.collect_params().reset_ctx(self.ctx)
         net.hybridize()
+        print(net)
         self.net = net
 
     def metric_str(self, names, accs):
