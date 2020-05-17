@@ -33,8 +33,8 @@ class DataRecHandler:
 
         # self.mode ='_orig_tt-split_SL'
         # self.mode ='_orig_tt-split_ML'
-        self.mode ='_oversampled_tt-split_SL'
-        # self.mode ='_oversampled_tt-split_ML'
+        # self.mode ='_oversampled_tt-split_SL'
+        self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'
@@ -80,8 +80,9 @@ class DataRecHandler:
                 for i in range(k):
                     self.rank_path = os.path.join(root_path, rank_name, 'x%s_train' % i)
                     self._get_samples_p_class()
+                    ######### commment out for HC-orig
                     self._oversample(technique=oversample_technique,max_class_count=max_class_count)
-
+                    ######### commment out for HC-orig
             self.rank_path = os.path.join(root_path, rank_name)
             self._get_samples_p_class()
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
@@ -510,8 +511,10 @@ class DataRecHandler:
             mapping_df = self._create_ml_list(mapping_df)
 
         # create RecordIO
-        if self.rank == 'hierarchical':
+        if self.rank == 'hierarchical' and  self.file_prefix.split('_')[-2] == 'xval':
             for fold in range(self.k):
+                # x7-approach
+                # if self.file_prefix.split('_')[-2] == 'xval':
                 if self.file_prefix.split('_')[-3] == 'oversampled':
                     fout = self.file_prefix + '_' + str(fold) +'_train.lst'
                     list_arg = self.file_prefix + '_' + str(fold) + '_test' + '.lst'
@@ -522,6 +525,21 @@ class DataRecHandler:
                 print('creating ' + list_arg)
                 i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
                 i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+                # elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
+                #     fout = self.file_prefix + '.lst'
+                #     print('creating ' + fout)
+                #     i2r = Im2Rec(
+                #         [fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+                # else:
+                #     fout = self.file_prefix + '_train' + '.lst'
+                #     print('creating ' + fout)
+                #     list_arg = self.file_prefix + '_test' + '.lst'
+                #     print('creating ' + list_arg)
+                #     i2r = Im2Rec(
+                #         [fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
+                #     i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread',
+                #                   str(self.num_workers)])
+
         elif self.file_prefix.split('_')[-2] == 'xval':
             for fold in range(self.k):
                 if self.file_prefix.split('_')[-3] == 'oversampled':
@@ -567,25 +585,33 @@ class DataRecHandler:
         if self.rank == 'all-in-one' or self.rank == 'hierarchical':
             label_width = 6
 
-        if self.rank == 'hierarchical':
-            if self.file_prefix.split('_')[-3] == 'oversampled':
-                file_prefix = self.file_prefix + '_' + str(fold) + '_train'
-                train_rec_path = file_prefix + '.rec'
-                train_idx_path = file_prefix + '.idx'
-                train_lst_path = file_prefix + '.lst'
-                file_prefix = self.file_prefix + '_' + str(self.k-1) + '_test'
-                test_rec_path = file_prefix + '.rec'
-                test_idx_path = file_prefix + '.idx'
-                test_lst_path = file_prefix + '.lst'
-            else:
-                file_prefix = self.file_prefix + '_train_' + str(fold)
-                train_rec_path = file_prefix + '.rec'
-                train_idx_path = file_prefix + '.idx'
-                train_lst_path = file_prefix + '.lst'
-                file_prefix = self.file_prefix + '_' + str(self.k-1)
-                test_rec_path = file_prefix + '.rec'
-                test_idx_path = file_prefix + '.idx'
-                test_lst_path = file_prefix + '.lst'
+        if self.rank == 'hierarchical' and self.file_prefix.split('_')[-2] == 'xval':
+                if self.file_prefix.split('_')[-3] == 'oversampled':
+                    file_prefix = self.file_prefix + '_' + str(fold) + '_train'
+                    train_rec_path = file_prefix + '.rec'
+                    train_idx_path = file_prefix + '.idx'
+                    train_lst_path = file_prefix + '.lst'
+                    file_prefix = self.file_prefix + '_' + str(self.k-1) + '_test'
+                    test_rec_path = file_prefix + '.rec'
+                    test_idx_path = file_prefix + '.idx'
+                    test_lst_path = file_prefix + '.lst'
+                else:
+                    file_prefix = self.file_prefix + '_train_' + str(fold)
+                    train_rec_path = file_prefix + '.rec'
+                    train_idx_path = file_prefix + '.idx'
+                    train_lst_path = file_prefix + '.lst'
+                    file_prefix = self.file_prefix + '_' + str(self.k-1)
+                    test_rec_path = file_prefix + '.rec'
+                    test_idx_path = file_prefix + '.idx'
+                    test_lst_path = file_prefix + '.lst'
+            # else:
+            #     shuffle_test = False
+            #     train_rec_path = self.file_prefix + '_train' + '.rec'
+            #     train_idx_path = self.file_prefix + '_train' + '.idx'
+            #     train_lst_path = self.file_prefix + '_train' + '.lst'
+            #     test_rec_path = self.file_prefix + '_test' + '.rec'
+            #     test_idx_path = self.file_prefix + '_test' + '.idx'
+            #     test_lst_path = self.file_prefix + '_test' + '.lst'
         elif self.mode.split('_')[-2]=='tt-split' and self.mode.split('_')[-3]=='oversampled':
             shuffle_test = False
             # creating train separately
