@@ -6,6 +6,7 @@ import skimage.io, skimage.segmentation, copy, sklearn, mxnet.ndarray
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from mxnet.gluon.data.vision import transforms
+import os
 
 
 transform = transforms.Compose([
@@ -15,7 +16,13 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-classes = 5
+path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/'
+image_folder = os.path.join(path,'Sordariomycetes_test')
+# file_prefix = 'MOM_EX_010_D__27.02.18_D__cut__6'
+# file_prefix = 'MOM_EX_014_B__14.03.18_B__cut__5'
+file_prefix = 'EKA_4.12.17_H__4.12.17_H__cut__1'
+classes = 11
+
 gpus = mx.test_utils.list_gpus()
 ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
 pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
@@ -25,9 +32,9 @@ finetune_net.output.collect_params().setattr('lr_mult', 10)
 finetune_net.features = pretrained_net.features
 finetune_net.collect_params().reset_ctx(ctx)
 finetune_net.hybridize()
-finetune_net.load_parameters('/home/stillsen/Documents/Data/selected_nets/fun_per_lvl_tt-split_phylum_e17_f0.param')
+finetune_net.load_parameters(os.path.join(path,'fun_per_lvl_tt-split_class_e11_f0.param'))
 
-Xi = skimage.io.imread('/home/stillsen/Documents/Data/selected_nets/MOM_EX_015_C__20.03.18_C__cut__6.png')
+Xi = skimage.io.imread(os.path.join(image_folder, file_prefix+'.png'))
 # Xi = skimage.transform.resize(Xi, (299,299))
 Xi = skimage.transform.resize(Xi, (224,224))
 # Xi = (Xi - 0.5)*2 #Inception pre-processing
@@ -48,7 +55,9 @@ print('observation prediction: %s' %top_pred_classes)
 superpixels = skimage.segmentation.quickshift(Xi, kernel_size=2,max_dist=5, ratio=0.2)
 num_superpixels = np.unique(superpixels).shape[0]
 
+skimage.io.imsave(os.path.join(path, file_prefix+'.png'), Xi)
 skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi, superpixels))
+skimage.io.imsave(os.path.join(path, file_prefix+'_segmentation.png'), skimage.segmentation.mark_boundaries(Xi, superpixels))
 plt.show()
 num_perturb = 150
 perturbations = np.random.binomial(1, 0.5, size=(num_perturb, num_superpixels))
@@ -99,5 +108,5 @@ top_features = np.argsort(coeff)[-num_top_features:]
 mask = np.zeros(num_superpixels)
 mask[top_features]= True #Activate top superpixels
 skimage.io.imshow(perturb_image(Xi,mask,superpixels) )
-
+skimage.io.imsave(os.path.join(path,file_prefix+'_explanation.png'), perturb_image(Xi,mask,superpixels))
 plt.show()
