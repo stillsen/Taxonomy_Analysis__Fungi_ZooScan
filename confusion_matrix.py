@@ -10,13 +10,14 @@ from mxnet.gluon.data.vision import transforms
 import os
 from mxnet.io import ImageRecordIter
 
-def plot_confusion_matrix(cm,
+def plot_confusion_matrix(y_true,
+                          y_pred,
                           target_names,
                           title='Confusion matrix - SL Class',
                           cmap=None,
                           normalize=True):
     """
-    given a sklearn confusion matrix (cm), make a nice plot
+    given a true and precition vector, compute confusion matrix and make a nice plot
 
     Arguments
     ---------
@@ -50,7 +51,11 @@ def plot_confusion_matrix(cm,
     import matplotlib.pyplot as plt
     import numpy as np
     import itertools
+    from sklearn.metrics import matthews_corrcoef
 
+    cm = confusion_matrix(labels, preds)
+
+    mcc = matthews_corrcoef(y_true, y_pred)
     accuracy = np.trace(cm) / float(np.sum(cm))
     misclass = 1 - accuracy
 
@@ -85,7 +90,7 @@ def plot_confusion_matrix(cm,
 
     plt.tight_layout()
     plt.ylabel('True label')
-    plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
+    plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}\nMCC/PCC={:0.4f}'.format(accuracy, misclass, mcc))
     plt.savefig('/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/cm.png', bbox_inches='tight')
     plt.show()
 
@@ -149,9 +154,5 @@ for batch in test_data:
     #
 df = pd.read_csv(os.path.join(path,'mapping.csv'), header=0,sep=',')
 target_names = df['taxon']
-cm = confusion_matrix(labels,preds)
-# confusion_matrix = ConfusionMatrix(labels, preds)
-plot_confusion_matrix(cm=cm, target_names=target_names, normalize=False)
-print(cm)
 
-# plt.show()
+plot_confusion_matrix(y_true=labels, y_pred=preds, target_names=target_names, normalize=False)
