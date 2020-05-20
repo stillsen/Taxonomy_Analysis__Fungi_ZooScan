@@ -321,6 +321,7 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
                         line_test = plt.errorbar('epochs', 'acc_test', yerr='test_sem', data=d[key], marker='',
                                                  color=colors[i], linewidth=1)
                     i+=1
+                    if firstrun: l.append(line_train)
 
 
             if metric == 'acc':
@@ -330,8 +331,8 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
                 # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
             else:
                 ax.set_ylabel('PCC/MCC', fontsize=12)
-                plt.ylim(-1, 1)
-                plt.yticks([-1, -0.5, 0, 0.1, 0.25, 0.5, 1])
+                plt.ylim(-0.1, 1)
+                plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1])
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
             plt.xticks([0, 5, 10, 15, 20])
             ax.set_xlabel('epochs', fontsize=12)
@@ -364,7 +365,8 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
             subplot += 1
 
             plt.tight_layout()
-            fig_file = os.path.join(figure_path, 'performancePlot_SL_'+metric+'.png')
+            # fig_file = os.path.join(figure_path, 'performancePlot_SL_'+metric+'.png')
+            fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
             # fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
@@ -375,7 +377,7 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
     # storage_path = os.path.join(storage_path,storage_folder)
     # dataset = 'fun'
     # mode = 'per_lvl'
-    plot_length = 60
+    plot_length = 20
 
     subdirs = [x[0] for x in os.walk(path)][1:]
 
@@ -472,7 +474,7 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                             d[key][sem_name] = by_row_index.sem()[col_name]
                             print(col_name)
                             line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1)
-
+                            l.append(line_train)
                             col_name = '%s_Test_PCC' % (tcn[rank])
                             sem_name = '%s_Test_SEM' % tcn[rank]
                             d[key][sem_name] = by_row_index.sem()[col_name]
@@ -484,7 +486,7 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                             d[key][sem_name] = by_row_index.sem()[col_name]
                             print(col_name)
                             line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1)
-
+                            l.append(line_train)
                             col_name = '%s_Test_ACC' % (tcn[rank])
                             sem_name = '%s_Test_SEM' % tcn[rank]
                             d[key][sem_name] = by_row_index.sem()[col_name]
@@ -498,8 +500,8 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                 # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
             else:
                 ax.set_ylabel('PCC/MCC', fontsize=12)
-                plt.ylim(-1, 1)
-                plt.yticks([-1, -0.5, 0, 0.1, 0.25, 0.5, 1])
+                plt.ylim(-0.1, 1)
+                plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1])
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
             plt.xticks([0, 5, 10, 15, 20])
             ax.set_xlabel('epochs', fontsize=12)
@@ -532,8 +534,8 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
             subplot += 1
 
             plt.tight_layout()
-            # fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
-            fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
+            # fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
 def get_comparisonDF(path, metric):
@@ -626,9 +628,10 @@ def comparisonPlot(path, figure_path, metric='pcc'):
 # storage_path = '/media/stillsen/Elements SE/Data/'
 
 # path='/home/stillsen/Documents/Data/Results/PerformancePlot_SL'
-path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
-# path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
+# path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
+path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_SL'
+# path='/home/stillsen/Documents/Data/Results/StabilityPlot_ML'
 #missing value definition
 missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
@@ -640,7 +643,7 @@ missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
 # ## figures
 #plot_fun(df_fun=df_fun,figure_path=figure_path)
-# plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
-comparisonPlot(path=path, figure_path=path, metric='pcc')
-# plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
+plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
+# comparisonPlot(path=path, figure_path=path, metric='pcc')
+# plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
 plt.show()
