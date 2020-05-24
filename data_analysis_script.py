@@ -334,7 +334,7 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
                 plt.ylim(-0.1, 1)
                 plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1])
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
-            plt.xticks([0, 5, 10, 15, 20])
+            plt.xticks(ticks=[0, 4, 9, 14, 19], labels=[1, 5, 10, 15, 20])
             ax.set_xlabel('epochs', fontsize=12)
 
             plt.tick_params(
@@ -503,7 +503,7 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                 plt.ylim(-0.1, 1)
                 plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1])
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
-            plt.xticks([0, 5, 10, 15, 20])
+            plt.xticks(ticks=[0, 4, 9, 14, 19], labels=[1, 5, 10, 15, 20])
             ax.set_xlabel('epochs', fontsize=12)
 
             plt.tick_params(
@@ -672,8 +672,9 @@ def get_comparisonDF(path):
 # storage_path = '/media/stillsen/Elements SE/Data/'
 
 # path='/home/stillsen/Documents/Data/Results/PerformancePlot_SL'
-path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
-# path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
+# path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
+# path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
+path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_SL'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_ML'
 #missing value definition
@@ -687,7 +688,7 @@ missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
 # ## figures
 #plot_fun(df_fun=df_fun,figure_path=figure_path)
-# plot_fun_classificationSL(path=path,  figure_path=path, metric='acc')
-get_comparisonDF(path=path)
+plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
+# get_comparisonDF(path=path)
 # plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
 plt.show()
