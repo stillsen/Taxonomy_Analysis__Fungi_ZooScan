@@ -538,11 +538,14 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
             # fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
-def get_comparisonDF(path, metric):
-    df_cmp = pd.DataFrame(columns=['Score','Metric','Dataset','Model','Rank'])
+def get_comparisonDF(path):
+    df_acc = pd.DataFrame(columns=['ACC','Metric','Dataset','Model','Rank'])
+    df_pcc = pd.DataFrame(columns=['MCC/PCC', 'Metric', 'Dataset', 'Model', 'Rank'])
 
+    pcc_idxs = dict()
     subdirs = [x[0] for x in os.walk(path)][1:]
     for subdir in sorted(subdirs):
+        print(subdir)
         if 'orig' in subdir.split('/')[-1]: dataset = 'orig'
         elif 'naiveOversampled' in subdir.split('/')[-1]: dataset = 'naiveOversampled'
         elif 'transformOversampled' in subdir.split('/')[-1]: dataset = 'transformOversampled'
@@ -552,70 +555,109 @@ def get_comparisonDF(path, metric):
         if 'HC' in subdir:
             model = 'HC'
         if 'SL' in subdir or 'HC' in subdir:
-            for file in [x[-1] for x in os.walk(subdir)][0]:
-                if metric == 'acc':
-                    if 'acc' in file:
-                        print('reading %s' % file)
-                        df = pd.read_csv(os.path.join(subdir, file))
-                    else:
-                        continue
-                else:
-                    if 'acc' not in file: # PCC
-                        print('reading %s' % file)
-                        df = pd.read_csv(os.path.join(subdir, file))
-                    else:
-                        continue
-                score = df['scores_test'].max()
-                rank = file.split('_')[-2]
-                df_cmp = df_cmp.append({'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': rank},ignore_index=True)
+            for file in sorted([x[-1] for x in os.walk(subdir)][0]):
+                print(file)
+
+                if 'acc' in file:
+                    print('reading %s' % file)
+                    df = pd.read_csv(os.path.join(subdir, file))
+                    # score = df['acc_test'].max()
+                    rank = file.split('_')[-4]
+                    score = df.iloc[pcc_idxs[model, dataset, rank]]['acc_test']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': rank},
+                        ignore_index=True)
+                else: # PCC
+                    print('reading %s' % file)
+                    df = pd.read_csv(os.path.join(subdir, file))
+                    score = df['scores_test'].max()
+                    rank = file.split('_')[-2]
+                    pcc_idxs[model, dataset, rank] = df['scores_test'].idxmax()
+                    df_pcc = df_pcc.append({'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': rank},ignore_index=True)
 
         elif 'ML' in subdir:
             model = 'ML'
-            for file in [x[-1] for x in os.walk(subdir)][0]:
-                if metric == 'acc':
-                    if 'acc' in file:
-                        print('reading %s' % file)
-                        df = pd.read_csv(os.path.join(subdir, file))
-                    else:
-                        continue
-                else:
-                    if 'acc' not in file:  # PCC
-                        print('reading %s' % file)
-                        df = pd.read_csv(os.path.join(subdir, file))
-                        score = df['Phylum_Test_PCC'].max()
-                        df_cmp = df_cmp.append(
-                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'phylum'},
-                            ignore_index=True)
-                        score = df['Class_Test_PCC'].max()
-                        df_cmp = df_cmp.append(
-                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'class'},
-                            ignore_index=True)
-                        score = df['Order_Test_PCC'].max()
-                        df_cmp = df_cmp.append(
-                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'order'},
-                            ignore_index=True)
-                        score = df['Family_Test_PCC'].max()
-                        df_cmp = df_cmp.append(
-                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'family'},
-                            ignore_index=True)
-                        score = df['Genus_Test_PCC'].max()
-                        df_cmp = df_cmp.append(
-                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'genus'},
-                            ignore_index=True)
-                        score = df['Species_Test_PCC'].max()
-                        df_cmp = df_cmp.append(
-                            {'Score': score, 'Metric': metric, 'Dataset': dataset, 'Model': model, 'Rank': 'species'},
-                            ignore_index=True)
-                    else:
-                        continue
-    return df_cmp
+            for file in sorted([x[-1] for x in os.walk(subdir)][0]):
+                print(file)
+                if 'acc' in file:
+                    print('reading %s' % file)
+                    df = pd.read_csv(os.path.join(subdir, file))
+                    ##############
+                    # df_filter = df.iloc[:,[3,5,7,9,11,13]]
+                    #############
+                    # score = df['Phylum_Test_ACC'].max()
+                    score = df.iloc[pcc_idxs[model, dataset, 'all-in-one']]['Phylum_Test_ACC']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': 'phylum'},
+                        ignore_index=True)
+                    # score = df['Class_Test_ACC'].max()
+                    score = df.iloc[pcc_idxs[model, dataset, 'all-in-one']]['Class_Test_ACC']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': 'class'},
+                        ignore_index=True)
+                    # score = df['Order_Test_ACC'].max()
+                    score = df.iloc[pcc_idxs[model, dataset, 'all-in-one']]['Order_Test_ACC']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': 'order'},
+                        ignore_index=True)
+                    # score = df['Family_Test_ACC'].max()
+                    score = df.iloc[pcc_idxs[model, dataset, 'all-in-one']]['Family_Test_ACC']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': 'family'},
+                        ignore_index=True)
+                    # score = df['Genus_Test_ACC'].max()
+                    score = df.iloc[pcc_idxs[model, dataset, 'all-in-one']]['Genus_Test_ACC']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': 'genus'},
+                        ignore_index=True)
+                    # score = df['Species_Test_ACC'].max()
+                    score = df.iloc[pcc_idxs[model, dataset, 'all-in-one']]['Species_Test_ACC']
+                    df_acc = df_acc.append(
+                        {'ACC': score, 'Metric': 'ACC', 'Dataset': dataset, 'Model': model, 'Rank': 'species'},
+                        ignore_index=True)
+                else:  # PCC
+                    print('reading %s' % file)
+                    df = pd.read_csv(os.path.join(subdir, file))
+                    ##############
+                    df_filter = df.iloc[:,[2,4,6,8,10,12]]
+                    row_sum = df_filter.sum(axis=1)
+                    best_idx = row_sum.idxmax()
+                    pcc_idxs[model, dataset, 'all-in-one'] = best_idx
+                    #############
+                    # score = df['Phylum_Test_PCC'].max()
+                    score = df.iloc[best_idx]['Phylum_Test_PCC']
+                    df_pcc = df_pcc.append(
+                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'phylum'},
+                        ignore_index=True)
+                    # score = df['Class_Test_PCC'].max()
+                    score = df.iloc[best_idx]['Class_Test_PCC']
+                    df_pcc = df_pcc.append(
+                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'class'},
+                        ignore_index=True)
+                    # score = df['Order_Test_PCC'].max()
+                    score = df.iloc[best_idx]['Order_Test_PCC']
+                    df_pcc = df_pcc.append(
+                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'order'},
+                        ignore_index=True)
+                    # score = df['Family_Test_PCC'].max()
+                    score = df.iloc[best_idx]['Family_Test_PCC']
+                    df_pcc = df_pcc.append(
+                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'family'},
+                        ignore_index=True)
+                    # score = df['Genus_Test_PCC'].max()
+                    score = df.iloc[best_idx]['Genus_Test_PCC']
+                    df_pcc = df_pcc.append(
+                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'genus'},
+                        ignore_index=True)
+                    # score = df['Species_Test_PCC'].max()
+                    score = df.iloc[best_idx]['Species_Test_PCC']
+                    df_pcc = df_pcc.append(
+                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'species'},
+                        ignore_index=True)
 
-def comparisonPlot(path, figure_path, metric='pcc'):
-    # get data
-    df = get_comparisonDF(path,metric)
-    df.to_csv(os.path.join(path,'comparisonPlot.csv'))
-    # GGPLOT2 HERE WE COME
-    # subdirs = [x[0] for x in os.walk(path)][1:]
+    df_acc.to_csv(os.path.join(path, 'comparisonPlotACC.csv'))
+    df_pcc.to_csv(os.path.join(path, 'comparisonPlotMCC.csv'))
+
 
 
 
@@ -628,8 +670,8 @@ def comparisonPlot(path, figure_path, metric='pcc'):
 # storage_path = '/media/stillsen/Elements SE/Data/'
 
 # path='/home/stillsen/Documents/Data/Results/PerformancePlot_SL'
-# path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
-path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
+path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
+# path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_SL'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_ML'
 #missing value definition
@@ -643,7 +685,7 @@ missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
 # ## figures
 #plot_fun(df_fun=df_fun,figure_path=figure_path)
-plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
-# comparisonPlot(path=path, figure_path=path, metric='pcc')
+# plot_fun_classificationSL(path=path,  figure_path=path, metric='acc')
+get_comparisonDF(path=path)
 # plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
 plt.show()
