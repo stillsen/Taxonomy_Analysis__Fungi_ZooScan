@@ -619,7 +619,8 @@ def get_comparisonDF(path):
                     # print('reading %s' % file)
                     df = pd.read_csv(os.path.join(subdir, file))
                     ##############
-                    df_filter = df.iloc[:,[2,4,6,8,10,12]]
+                    # df_filter = df.iloc[:,[2,4,6,8,10,12]]
+                    df_filter = df.iloc[:, [3, 5, 7, 9, 11, 13]]
                     row_sum = df_filter.sum(axis=1)
                     best_idx = row_sum.idxmax()
                     pcc_idxs[model, dataset, 'all-in-one'] = best_idx
