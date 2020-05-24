@@ -13,6 +13,7 @@ from mxnet.io import ImageRecordIter
 def plot_confusion_matrix(y_true,
                           y_pred,
                           target_names,
+                          path,
                           title='Confusion matrix - SL Class',
                           cmap=None,
                           normalize=True):
@@ -91,7 +92,7 @@ def plot_confusion_matrix(y_true,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}\nMCC/PCC={:0.4f}'.format(accuracy, misclass, mcc))
-    plt.savefig('/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/cm.png', bbox_inches='tight')
+    plt.savefig(os.path.join(path,'confusionmatrix.png'), bbox_inches='tight')
     plt.show()
 
 
@@ -103,9 +104,12 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/'
-param_file = os.path.join(path,'fun_per_lvl_tt-split_class_e11_f0.param')
-path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/class/test'
+# path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/'
+# param_file = os.path.join(path,'fun_per_lvl_tt-split_class_e11_f0.param')
+# path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/class/test'
+root_path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/'
+param_file = os.path.join(root_path,'fun_per_lvl_tt-split_class_e11_f0.param')
+path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/class/test'
 ############# load net ###############
 classes = 11
 gpus = mx.test_utils.list_gpus()
@@ -155,4 +159,4 @@ for batch in test_data:
 df = pd.read_csv(os.path.join(path,'mapping.csv'), header=0,sep=',')
 target_names = df['taxon']
 
-plot_confusion_matrix(y_true=labels, y_pred=preds, target_names=target_names, normalize=False)
+plot_confusion_matrix(y_true=labels, y_pred=preds, target_names=target_names, path=root_path, normalize=False)
