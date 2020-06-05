@@ -20,8 +20,8 @@ class BigBangNet(gluon.HybridBlock):
             self.class_out   = gluon.nn.Dense(c)
             self.order_out = gluon.nn.Dense(o)
             self.family_out = gluon.nn.Dense(f)
-            self.genus_space = gluon.nn.Dense(g)
-            self.species_space = gluon.nn.Dense(s)
+            self.genus_out = gluon.nn.Dense(g)
+            self.species_out = gluon.nn.Dense(s)
 
     def hybrid_forward(self, F, x):
 
@@ -31,8 +31,8 @@ class BigBangNet(gluon.HybridBlock):
         out2 = self.class_out(featureX)
         out3 = self.order_out(featureX)
         out4 = self.family_out(featureX)
-        out5 = self.genus_space(featureX)
-        out6 = self.species_space(featureX)
+        out5 = self.genus_out(featureX)
+        out6 = self.species_out(featureX)
 
         return (out1, out2, out3, out4, out5, out6)
 
@@ -87,6 +87,8 @@ class ModelHandler:
             pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
             finetune_net = get_model(model_name, classes=classes)
             finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+            # The model parameters in output will be updated using a learning rate ten
+            # times greater
             finetune_net.output.collect_params().setattr('lr_mult', 10)
             finetune_net.features = pretrained_net.features
             finetune_net.collect_params().reset_ctx(ctx)
@@ -102,7 +104,12 @@ class ModelHandler:
                                       g=68,
                                       s=166)
             finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
-            finetune_net.collect_params().setattr('lr_mult', 10)
+            finetune_net.phylum_out.collect_params().setattr('lr_mult', 10)
+            finetune_net.class_out.collect_params().setattr('lr_mult', 10)
+            finetune_net.order_out.collect_params().setattr('lr_mult', 10)
+            finetune_net.family_out.collect_params().setattr('lr_mult', 10)
+            finetune_net.genus_out.collect_params().setattr('lr_mult', 10)
+            finetune_net.species_out.collect_params().setattr('lr_mult', 10)
             finetune_net.feature = pretrained_net.features
             finetune_net.hybridize()
             self.loss_fn = gluon.loss.SoftmaxCrossEntropyLoss()
@@ -112,6 +119,8 @@ class ModelHandler:
             pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
             finetune_net = get_model(model_name, classes=classes)
             finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+            # The model parameters in output will be updated using a learning rate ten
+            # times greater
             finetune_net.output.collect_params().setattr('lr_mult', 10)
             finetune_net.features = pretrained_net.features
             finetune_net.collect_params().reset_ctx(ctx)
@@ -128,11 +137,12 @@ class ModelHandler:
         net = gluon.nn.HybridSequential()
         with net.name_scope():
             net.add(self.net)
-            net.add(gluon.nn.Dense(classes))
+            next_layer = gluon.nn.Dense(classes)
+            net.add(next_layer)
         # initialize the parameters
         net.collect_params().initialize()
         # finetune_net.output.initialize(init.Xavier(), ctx=ctx)
-        net.collect_params().setattr('lr_mult', 10)
+        next_layer.collect_params().setattr('lr_mult', 10)
         net.collect_params().reset_ctx(self.ctx)
         net.hybridize()
         print(net)
