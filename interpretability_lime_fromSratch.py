@@ -17,7 +17,7 @@ transform = transforms.Compose([
 ])
 
 path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/'
-image_folder = os.path.join(path,'Sordariomycetes_test')
+image_folder = os.path.join(path,'class/test/Sordariomycetes')
 # file_prefix = 'MOM_EX_010_D__27.02.18_D__cut__6'
 # file_prefix = 'MOM_EX_014_B__14.03.18_B__cut__5'
 file_prefix = 'EKA_4.12.17_H__4.12.17_H__cut__1'
@@ -54,10 +54,15 @@ print('observation prediction: %s' %top_pred_classes)
 # superpixels = skimage.segmentation.quickshift(Xi, kernel_size=4,max_dist=200, ratio=0.2)
 superpixels = skimage.segmentation.quickshift(Xi, kernel_size=2,max_dist=5, ratio=0.2)
 num_superpixels = np.unique(superpixels).shape[0]
-
-skimage.io.imsave(os.path.join(path, file_prefix+'.png'), Xi)
+# ###############################
+skimage.io.imshow(Xi)
+plt.show()
+# skimage.io.imshow(superpixels)
+# plt.show()
+# ###############################
+# skimage.io.imsave(os.path.join(path, file_prefix+'.png'), Xi)
 skimage.io.imshow(skimage.segmentation.mark_boundaries(Xi, superpixels))
-skimage.io.imsave(os.path.join(path, file_prefix+'_segmentation.png'), skimage.segmentation.mark_boundaries(Xi, superpixels))
+# skimage.io.imsave(os.path.join(path, file_prefix+'_segmentation.png'), skimage.segmentation.mark_boundaries(Xi, superpixels))
 plt.show()
 num_perturb = 150
 perturbations = np.random.binomial(1, 0.5, size=(num_perturb, num_superpixels))

@@ -10,6 +10,8 @@ from lime import lime_image
 import time
 from mxnet.io import ImageRecordIter
 import pandas as pd
+from lime.wrappers.scikit_image import SegmentationAlgorithm
+
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -21,7 +23,7 @@ def classifier_fn(images):
     return preds.asnumpy()
 
 path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/'
-rec_path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/class/test'
+rec_path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/class/test'
 rec_prefix = 'class_test_oversampled_tt-split_SL'
 param_file = 'fun_per_lvl_tt-split_class_e11_f0.param'
 
@@ -53,6 +55,11 @@ finetune_net.hybridize()
 finetune_net.load_parameters(os.path.join(path, param_file))
 
 erros = 0
+
+kernel_size=6
+max_dist=100
+ratio=1
+
 for i,batch in enumerate(test_data):
     label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
     image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
@@ -63,28 +70,35 @@ for i,batch in enumerate(test_data):
     # plt.show()
     try:
         img = np.moveaxis(image[0][0].asnumpy(),0,2).astype(float)/255
-        explainer = lime_image.LimeImageExplainer(verbose=True)
-        explanation = explainer.explain_instance(img, classifier_fn,top_labels=5, hide_color=0, num_samples=1000)
+        explainer = lime_image.LimeImageExplainer(verbose=True, kernel_width=0.25)#, feature_selection='lasso_path')
+
+        explanation = explainer.explain_instance(img,
+                                                 classifier_fn,
+                                                 top_labels=5,
+                                                 hide_color=0,
+                                                 num_samples=1000,
+                                                 segmentation_fn = SegmentationAlgorithm('quickshift', kernel_size=kernel_size, max_dist=max_dist, ratio=ratio))
 
         outpath = os.path.join(path, 'l_' + str(label) + '__' + taxon)
         if not os.path.exists(outpath):
             os.mkdir(outpath)
         prefix = os.path.join(outpath, 'l_' + str(label) + '__' + taxon)
 
-        temp, mask = explanation.get_image_and_mask(label, positive_only=True, num_features=5, hide_rest=False)
-        plt.imshow(temp)
+        temp, mask = explanation.get_image_and_mask(label, positive_only=True, num_features=10, hide_rest=False)
+        # plt.imshow(temp)
         plt.savefig(prefix + '_' + str(i) + '.png')
         plt.clf()
         plt.imshow(skimage.segmentation.mark_boundaries(temp, mask))
         plt.text(2, 10, 'explanation fit: ' + str(explanation.score)[:4], color='white', fontsize=15, weight='bold')
         plt.savefig(prefix + '_' + str(i) + '_explanation_pos.png')
+        plt.show()
         plt.clf()
-        # plt.show()
-        temp, mask = explanation.get_image_and_mask(label, positive_only=False, num_features=10, hide_rest=False)
+        temp, mask = explanation.get_image_and_mask(label, positive_only=False, num_features=20, hide_rest=False)
         plt.imshow(skimage.segmentation.mark_boundaries(temp, mask))
         plt.text(2, 10, 'explanation fit: ' + str(explanation.score)[:4], color='white', fontsize=15, weight='bold')
         plt.savefig(prefix + '_' + str(i) + '_explanation_all.png')
         plt.clf()
+        plt.show()
     except KeyError:
         print('key erros: %s' % erros)
         erros += 1

@@ -15,11 +15,21 @@ import os.path
 from os import path
 from collections import Counter
 
-def tax_distr(df):
-    return []
-
-def rank_distr(df):
-    return []
+def key_fn(item):
+    rv = None
+    if 'phylum' in item:
+        rv = 0
+    elif 'class' in item:
+        rv = 1
+    elif 'order' in item:
+        rv = 2
+    elif 'family' in item:
+        rv = 3
+    elif 'genus' in item:
+        rv = 4
+    elif 'species' in item:
+        rv = 5
+    return rv
 
 def prepare_fun_df(df, higher_taxonomic_groups = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus']):
     # add a taxon and maximum classification class (rank) column
@@ -59,7 +69,7 @@ def plot_taxon_dist(x, y, cc, cmap, colors, taxonomic_groups, taxonomic_groups_t
     sm.set_array([])
     # color bar
     cbar = plt.colorbar(sm)
-    cbar.set_label('Taxonomic Rank', rotation=270, labelpad=25)
+    cbar.set_label('Taxonomic Rank', rotation=270, labelpad=25, fontsize=15)
     # cbar.set_ticks([taxonomic_groups_to_color[x] - 0.0625 for x in taxonomic_groups])
     cbar.set_ticks([taxonomic_groups_to_color[x] + offset for x in taxonomic_groups])
     cbar.set_ticklabels(taxonomic_groups)
@@ -82,9 +92,9 @@ def plot_taxon_dist(x, y, cc, cmap, colors, taxonomic_groups, taxonomic_groups_t
         labelbottom=False)
     # title
     # plt.title(title, fontsize=22)
-    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+    ax.text(.5, .9, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
     # labels
-    plt.ylabel("#")
+    plt.ylabel("#", fontsize=15)
     # plt.xlabel('Taxon')
 
     # make room for x labels
@@ -110,7 +120,9 @@ def plot_class_dist(x, y, colors, title, label_x, ax=None):
             labelbottom=False)
     else:
         # x ticks
-        plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right')
+        plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right', fontsize=15)
+
+    plt.yticks( fontsize=15)
         # title
         # plt.title(title, fontsize=22)
 
@@ -118,9 +130,9 @@ def plot_class_dist(x, y, colors, title, label_x, ax=None):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    ax.text(.9, .95, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+    ax.text(.9, .95, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
     # labels
-    plt.ylabel("#")
+    plt.ylabel("#", fontsize=15)
     # plt.xlabel('Taxon')
 
     # make room for x labels
@@ -138,6 +150,8 @@ def plot_fun(df_fun, figure_path):
     x_fun = []
     y_fun = []
     ranks = []
+    avg_samples_per_rank = []
+    sem_per_rank = []
     for i, rank in enumerate(taxonomic_groups):
         # classes
         x_rank = df_fun[rank].value_counts().index.tolist()
@@ -145,6 +159,9 @@ def plot_fun(df_fun, figure_path):
         # count
         y_rank = df_fun[rank].value_counts()
         y_fun.extend(y_rank)
+        # compute average samples per rank + SEM
+        avg_samples_per_rank.append(y_rank.mean())
+        sem_per_rank.append(y_rank.sem())
         # rank vector
         n_rank = [rank]*len(y_rank)
         # print('extending by factor %i, and is of length %i' % (len(y_fun), len(n_rank)))
@@ -161,19 +178,19 @@ def plot_fun(df_fun, figure_path):
     #encode cc in cmap
     colors = cmap(cc)
 
-    # 'Per-Level Taxonomic Distribution - Fungi Data set'
-    title = ''
-    plot_taxon_dist(x=x_fun,
-                    y=y_fun,
-                    cc=cc,
-                    cmap=cmap,
-                    colors=colors,
-                    taxonomic_groups=taxonomic_groups,
-                    taxonomic_groups_to_color=taxonomic_groups_to_color,
-                    title=title,
-                    offset=-(0.142857142857143/2))
-    fig_file = os.path.join(figure_path, 'data__per-lvl_tdist-fds.png')
-    plt.savefig(fig_file, bbox_inches='tight')
+    # # 'Per-Level Taxonomic Distribution - Fungi Data set'
+    # title = ''
+    # plot_taxon_dist(x=x_fun,
+    #                 y=y_fun,
+    #                 cc=cc,
+    #                 cmap=cmap,
+    #                 colors=colors,
+    #                 taxonomic_groups=taxonomic_groups,
+    #                 taxonomic_groups_to_color=taxonomic_groups_to_color,
+    #                 title=title,
+    #                 offset=-(0.142857142857143/2))
+    # fig_file = os.path.join(figure_path, 'data__per-lvl_tdist-fds.png')
+    # plt.savefig(fig_file, bbox_inches='tight')
 
     ##plot fun:  classes vs count with taxonomic rank colorcoded
     #value count of rank
@@ -206,7 +223,7 @@ def plot_fun(df_fun, figure_path):
         if np.nan in d:
             d['unclassified'] = d.pop(np.nan)
         # title = '%s Distribution - Fungi Dataset'%taxa
-        title = str(rank)
+        title = str(rank)+'      \navg: '+str(avg_samples_per_rank[i])[:5]+'\nsem: '+str(sem_per_rank[i])[:5]
         # title = ''
         #set color accordingly
         color = colors[i]
@@ -236,6 +253,7 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
 
     # color coding taxonomic ranks
     taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+    taxonomic_groups_labels = ['phylum train','phylum test', 'class train','class test', 'order train', 'order test', 'family train', 'family test', 'genus train', 'genus test', 'species train', 'species test']
     taxonomic_groups_to_color = { 'phylum': 0.857142857142857, 'class': 0.714285714285714, 'order': 0.571428571428571, 'family': 0.428571428571429, 'genus':  0.285714285714286, 'species': 0.142857142857143}
 
     cc = [taxonomic_groups_to_color[x] for x in taxonomic_groups]
@@ -262,33 +280,35 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
             title = next(abc) #+') '+ subdir.split('/')[-1].split('_')[1] +' '+ subdir.split('/')[-1].split('_')[2]
             i = 0
             if 'tt-split' in subdir.split('/')[-1]:
-                for file in [x[-1] for x in os.walk(subdir)][0]:
+                for file in sorted([x[-1] for x in os.walk(subdir)][0], key=key_fn):
                     if metric == 'acc':
                         if 'acc' in file:
                             print('reading %s'%file)
                             df = pd.read_csv(os.path.join(subdir,file))
                             line_train, = plt.plot('epochs', 'acc_train', data=df, marker='', color=colors[i],
-                                                   linewidth=1, label=file.split('_')[-2])
+                                                   linewidth=1.5, label=file.split('_')[-2])
                             line_test, = plt.plot('epochs', 'acc_test', data=df, marker='', color=colors[i],
-                                                  linewidth=1)
+                                                  linewidth=1.5)
                         else: continue
                     else:
                         if 'acc' not in file:
                             print('reading %s'%file)
                             df = pd.read_csv(os.path.join(subdir,file))
                             line_train, = plt.plot('epochs', 'scores_train', data=df, marker='', color=colors[i],
-                                                   linewidth=1, label=file.split('_')[-2])
+                                                   linewidth=1.5, label=file.split('_')[-2])
                             line_test, = plt.plot('epochs', 'scores_test', data=df, marker='', color=colors[i],
-                                                  linewidth=1)
+                                                  linewidth=1.5)
                         else: continue
 
 
                     i+=1
                     if firstrun: l.append(line_train)
+                    # l.append(line_train)
+                    # l.append(line_test)
                 firstrun = False
             elif 'xval' in subdir.split('/')[-1]:
                 d = dict()
-                for file in [x[-1] for x in os.walk(subdir)][0]:
+                for file in sorted([x[-1] for x in os.walk(subdir)][0], key=key_fn):
                     if (metric == 'acc' and 'acc' in file):
                         print('reading %s' % file)
                         if file.split('_')[-4] not in d:
@@ -311,31 +331,33 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
                     if metric == 'pcc':
                         d[key]['train_sem'] = by_row_index.sem()['scores_train']
                         d[key]['test_sem'] = by_row_index.sem()['scores_test']
-                        line_train = plt.errorbar('epochs', 'scores_train', yerr='train_sem', data=d[key], marker='', color=colors[i], linewidth=1)
-                        line_test = plt.errorbar('epochs', 'scores_test', yerr='test_sem', data=d[key], marker='', color=colors[i], linewidth=1)
+                        line_train = plt.errorbar('epochs', 'scores_train', yerr='train_sem', data=d[key], marker='', color=colors[i], linewidth=1.5)
+                        line_test = plt.errorbar('epochs', 'scores_test', yerr='test_sem', data=d[key], marker='', color=colors[i], linewidth=1.5)
                     elif metric == 'acc':
                         d[key]['train_sem'] = by_row_index.sem()['acc_train']
                         d[key]['test_sem'] = by_row_index.sem()['acc_test']
                         line_train = plt.errorbar('epochs', 'acc_train', yerr='train_sem', data=d[key], marker='',
-                                                  color=colors[i], linewidth=1)
+                                                  color=colors[i], linewidth=1.5)
                         line_test = plt.errorbar('epochs', 'acc_test', yerr='test_sem', data=d[key], marker='',
-                                                 color=colors[i], linewidth=1)
+                                                 color=colors[i], linewidth=1.5)
                     i+=1
                     if firstrun: l.append(line_train)
+                    # l.append(line_train)
+                    # l.append(line_test)
 
 
             if metric == 'acc':
-                ax.set_ylabel('ACC', fontsize=12)
+                ax.set_ylabel('ACC', fontsize=15)
                 plt.ylim(0, 1)
-                plt.yticks([0, 0.25, 0.5, 1])
+                plt.yticks([0, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
             else:
-                ax.set_ylabel('PCC/MCC', fontsize=12)
+                ax.set_ylabel('PCC/MCC', fontsize=15)
                 plt.ylim(-0.1, 1)
-                plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1])
+                plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
-            plt.xticks(ticks=[0, 4, 9, 14, 19], labels=[1, 5, 10, 15, 20])
-            ax.set_xlabel('epochs', fontsize=12)
+            plt.xticks(ticks=[0, 4, 9, 14, 19], labels=[1, 5, 10, 15, 20], fontsize=12)
+            ax.set_xlabel('epochs', fontsize=15)
 
             plt.tick_params(
                 axis='x',  # changes apply to the x-axis
@@ -350,9 +372,9 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
             ax.spines['right'].set_visible(False)
             # title
             if subplot == 1:
-                ax.text(.92, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+                ax.text(.92, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
             else:
-                ax.text(.84, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+                ax.text(.84, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
 
             # adds major gridlines
             ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.6)
@@ -366,8 +388,8 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
 
             plt.tight_layout()
             # fig_file = os.path.join(figure_path, 'performancePlot_SL_'+metric+'.png')
-            fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
-            # fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
+            # fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
 def plot_fun_classificationML(path, figure_path, metric='pcc'):
@@ -419,10 +441,10 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                             for rank in range(6):
                                 col_name = '%s_Train_ACC'%tcn[rank]
                                 print(col_name)
-                                line_train, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank],linewidth=1, label=tcn[rank])
+                                line_train, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank],linewidth=1.5, label=tcn[rank])
                                 l.append(line_train)
                                 col_name = '%s_Test_ACC' % (tcn[rank])
-                                line_test, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1, label=tcn[rank])
+                                line_test, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1.5, label=tcn[rank])
                         else:
                             continue
                     else:
@@ -432,10 +454,10 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                             for rank in range(6):
                                 col_name = '%s_Train_PCC'%tcn[rank]
                                 print(col_name)
-                                line_train, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank],linewidth=1, label=tcn[rank])
+                                line_train, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank],linewidth=1.5, label=tcn[rank])
                                 l.append(line_train)
                                 col_name = '%s_Test_PCC' % (tcn[rank])
-                                line_test, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1, label=tcn[rank])
+                                line_test, = plt.plot(df['Epochs'].to_list()[:plot_length], df[col_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1.5, label=tcn[rank])
 
 
                         else:
@@ -473,38 +495,38 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                             sem_name = '%s_Train_SEM' % tcn[rank]
                             d[key][sem_name] = by_row_index.sem()[col_name]
                             print(col_name)
-                            line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1)
+                            line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1.5)
                             l.append(line_train)
                             col_name = '%s_Test_PCC' % (tcn[rank])
                             sem_name = '%s_Test_SEM' % tcn[rank]
                             d[key][sem_name] = by_row_index.sem()[col_name]
-                            line_test = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='',color=colors[rank], linewidth=1)
+                            line_test = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='',color=colors[rank], linewidth=1.5)
                     elif metric == 'acc':
                         for rank in range(6):
                             col_name = '%s_Train_ACC' % tcn[rank]
                             sem_name = '%s_Train_SEM' % tcn[rank]
                             d[key][sem_name] = by_row_index.sem()[col_name]
                             print(col_name)
-                            line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1)
+                            line_train = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='', color=colors[rank], linewidth=1.5)
                             l.append(line_train)
                             col_name = '%s_Test_ACC' % (tcn[rank])
                             sem_name = '%s_Test_SEM' % tcn[rank]
                             d[key][sem_name] = by_row_index.sem()[col_name]
-                            line_test = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='',color=colors[rank], linewidth=1)
+                            line_test = plt.errorbar(d[key]['Epochs'].to_list()[:plot_length], d[key][col_name].to_list()[:plot_length], yerr=d[key][sem_name].to_list()[:plot_length], marker='',color=colors[rank], linewidth=1.5)
                     i += 1
 
             if metric == 'acc':
-                ax.set_ylabel('ACC', fontsize=12)
+                ax.set_ylabel('ACC', fontsize=15)
                 plt.ylim(0, 1)
-                plt.yticks([0, 0.25, 0.5, 1])
+                plt.yticks([0, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
             else:
-                ax.set_ylabel('PCC/MCC', fontsize=12)
+                ax.set_ylabel('PCC/MCC', fontsize=15)
                 plt.ylim(-0.1, 1)
-                plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1])
+                plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
-            plt.xticks(ticks=[0, 4, 9, 14, 19], labels=[1, 5, 10, 15, 20])
-            ax.set_xlabel('epochs', fontsize=12)
+            plt.xticks(ticks=[0, 4, 9, 14, 19], labels=[1, 5, 10, 15, 20], fontsize=12)
+            ax.set_xlabel('epochs', fontsize=15)
 
             plt.tick_params(
                 axis='x',  # changes apply to the x-axis
@@ -519,9 +541,9 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
             ax.spines['right'].set_visible(False)
             # title
             if subplot == 1:
-                ax.text(.92, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+                ax.text(.92, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
             else:
-                ax.text(.84, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=12)
+                ax.text(.84, 0.05, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
 
             # adds major gridlines
             ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.6)
@@ -534,8 +556,8 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
             subplot += 1
 
             plt.tight_layout()
-            fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
-            # fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
+            # fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
 def get_comparisonDF(path):
@@ -665,30 +687,30 @@ def get_comparisonDF(path):
 
 # pathes to datasets that need to be analyzed and taxonomic classification file
 # path_fun = '/home/stillsen/Documents/Data/Image_classification_soil_fungi'
-# path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
-# tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
+path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
+tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 
 # epochs = 20
 # storage_path = '/media/stillsen/Elements SE/Data/'
 
 # path='/home/stillsen/Documents/Data/Results/PerformancePlot_SL'
-# path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
+path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
 # path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
-path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
+# path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_SL'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_ML'
 #missing value definition
 missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
 # # getting Dataframe for Fungi and Zoo
-# csv_path = os.path.join(path_fun, tax_file_fun)
-# df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
-# # #add column taxon and rank, s.a.
-# df_fun = prepare_fun_df(df_fun)
+csv_path = os.path.join(path_fun, tax_file_fun)
+df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
+# #add column taxon and rank, s.a.
+df_fun = prepare_fun_df(df_fun)
 
 # ## figures
-#plot_fun(df_fun=df_fun,figure_path=figure_path)
-plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
+plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results/statistics')
+# plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
 # get_comparisonDF(path=path)
-# plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
+# plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
 plt.show()
