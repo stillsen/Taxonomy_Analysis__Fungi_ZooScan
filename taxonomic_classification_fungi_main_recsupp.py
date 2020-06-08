@@ -61,19 +61,21 @@ taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 oversample_technique = 'transformOversampled' # 'naiveOversampled', 'smote'
 dataset = 'fun'
 net_name = 'densenet169'
+# net_name = 'resnet152_v1d'
 
-csv_path = os.path.join(path, 'im.merged.v10032020_unique_id_set.csv')
+# csv_path = os.path.join(path, 'im.merged.v10032020_unique_id_set.csv')
+csv_path = os.path.join(path, 'im.merged.v10032020_unique_id_set__mv_imuted.csv')
 df = pd.read_csv(csv_path, na_values=missing_values)
 
 print('NaNs in the label data set')
-print(df.isnull().sum())
+print(df.iloc[:, 16:22].isnull().sum())
 
 ###################################################################################
 #######################   Per Level Classifier  ###################################
 ###################################################################################
 # PARAMETERS Training
-# multilabel lvl = 1 ==> per rank classifier
-# multilabel lvl = 2 ==> all-in-one classifier
+# multilabel lvl = 1 #==> per rank classifier
+# multilabel_lvl = 2 # ==> all-in-one classifier
 multilabel_lvl = 1
 
 # k fold cross validation
@@ -213,7 +215,7 @@ lighting_param = 0.1
 #                                 ext_storage_path=ext_storage_path,
 #                                 taxa='_%s' % taxa,
 #                                 data_handler=data_rec_handler)
-
+#
 print("########### Nested ###############")
 multilabel_lvl = 3 # relevant for model
 taxa = 'hierarchical' #relevant for RecordIO creation
@@ -224,7 +226,7 @@ oversample_technique='naiveOversampled'
 # --> set dataRecHandler to appropriate --------------------> Each Level Needs it's own dataset: simulate with crossval and fold, k=7 <---------------
 # also for orig use mode ='_oversampled_xval_ML' but with oversample commented out
 for rank_idx, taxa_rank in enumerate(taxonomic_groups):
-    print('hierarchical tt-split for %s' %(taxa))
+    print('hierarchical tt-split for %s %s' %(taxa, taxa_rank))
 
     if rank_idx==0:
         create_recs = True
@@ -274,6 +276,7 @@ for rank_idx, taxa_rank in enumerate(taxonomic_groups):
                                 data_handler=data_rec_handler)
     if model.best_model is not None:
         prev_best_model = os.path.join(ext_storage_path, model.best_model)
+        print('previous best model: %s'%prev_best_model)
 
 # ###################################################################################
 # #######################   All in One Classifier  ##################################
@@ -283,40 +286,40 @@ for rank_idx, taxa_rank in enumerate(taxonomic_groups):
 # oversample_technique = 'naiveOversampled'
 # taxa = 'all-in-one'
 # rank_idx=0
-# # fold=0
+# fold=0
 # print('working in all-in-one taxonomic classification')
 # print('%i-fold crossvalidation for %s' % (k, taxa))
-# for fold in range(k):
-#     if fold == 0:
-#         create_recs = True
-#     else:
-#         create_recs = False
-# # create_recs = True
-#     data_rec_handler = DataRecHandler(root_path=path,
-#                                       rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
-#                                       rank_idx=rank_idx,
-#                                       batch_size=batch_size,
-#                                       num_workers=num_workers,
-#                                       k=k,
-#                                       create_recs=create_recs,
-#                                       oversample_technique=oversample_technique)
-#     data_rec_handler.load_rec(fold)
-#     print('number of classes %i' %data_rec_handler.classes[rank_idx])
-#     model = ModelHandler(classes=data_rec_handler.classes[rank_idx],
-#                          batch_size=batch_size,
-#                          num_workers=num_workers,
-#                          metrics=metric,
-#                          learning_rate=learning_rate,
-#                          momentum=momentum,
-#                          multi_label_lvl=multilabel_lvl,
-#                          model_name=net_name,
-#                          rank_idx=rank_idx)
-# #
-# #     model = load_or_train_model(model=model,
-# #                                 dataset=dataset,
-# #                                 mode='all-in-one',
-# #                                 epochs=epochs,
-# #                                 ext_storage_path=ext_storage_path,
-# #                                 taxa='_%s' % taxa,
-# #                                 data_handler=data_rec_handler,
-# #                                 fold=fold)
+# # for fold in range(k):
+# #     if fold == 0:
+# #         create_recs = True
+# #     else:
+# #         create_recs = False
+# create_recs = True
+# data_rec_handler = DataRecHandler(root_path=path,
+#                                   rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
+#                                   rank_idx=rank_idx,
+#                                   batch_size=batch_size,
+#                                   num_workers=num_workers,
+#                                   k=k,
+#                                   create_recs=create_recs,
+#                                   oversample_technique=oversample_technique)
+# data_rec_handler.load_rec(fold)
+# print('number of classes %i' %data_rec_handler.classes[rank_idx])
+# model = ModelHandler(classes=data_rec_handler.classes[rank_idx],
+#                      batch_size=batch_size,
+#                      num_workers=num_workers,
+#                      metrics=metric,
+#                      learning_rate=learning_rate,
+#                      momentum=momentum,
+#                      multi_label_lvl=multilabel_lvl,
+#                      model_name=net_name,
+#                      rank_idx=rank_idx)
+#
+# model = load_or_train_model(model=model,
+#                             dataset=dataset,
+#                             mode='all-in-one',
+#                             epochs=epochs,
+#                             ext_storage_path=ext_storage_path,
+#                             taxa='_%s' % taxa,
+#                             data_handler=data_rec_handler,
+#                             fold=fold)
