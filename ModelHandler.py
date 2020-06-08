@@ -362,9 +362,12 @@ class ModelHandler:
                 acc_names, acc_val = self.evaluate(net, val_iter, ctx, acc_metric).get()
                 print('\t[Fold %d Epoch %d] validation: %s'%(fold, epoch, self.metric_str(val_names, score_val)))
                 print('\t[Fold %d Epoch %d] validation: %s' % (fold, epoch, self.metric_str(acc_name, acc_val)))
-                if score_val > prev_score_val:
-                    prev_score_val = score_val
+                if epoch == 0:
                     self.best_model = param_file_name.split('.')[0]+'_e'+str(epoch)+'_f'+str(fold)+'.param'
+                else:
+                    if score_val > prev_score_val:
+                        prev_score_val = score_val
+                        self.best_model = param_file_name.split('.')[0]+'_e'+str(epoch)+'_f'+str(fold)+'.param'
 
 
             # ext_storage_path, param_file_name, app_file_name, net_list, score_list, app
