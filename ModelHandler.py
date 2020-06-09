@@ -97,11 +97,17 @@ class ModelHandler:
 
         if multi_label_lvl == 2: # all-in-one/big bang classifiers
             pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
-            finetune_net = BigBangNet(p=5,
-                                      c=11,
-                                      o=27,
-                                      f=46,
-                                      g=68,
+            # finetune_net = BigBangNet(p=5,
+            #                           c=11,
+            #                           o=27,
+            #                           f=46,
+            #                           g=68,
+            #                           s=166)
+            finetune_net = BigBangNet(p=6,
+                                      c=13,
+                                      o=31,
+                                      f=56,
+                                      g=88,
                                       s=166)
             finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
             finetune_net.phylum_out.collect_params().setattr('lr_mult', 10)
