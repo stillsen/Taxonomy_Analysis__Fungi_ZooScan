@@ -14,6 +14,7 @@ import skimage.io
 # from DataPrep import DataPrep
 from DataRecHandler import DataRecHandler
 from ModelHandler import ModelHandler
+from collections import Counter
 
 
 def load_or_train_model(model, dataset, mode, epochs, ext_storage_path, data_handler, fold=0, taxa=''):
@@ -69,6 +70,19 @@ df = pd.read_csv(csv_path, na_values=missing_values)
 
 print('NaNs in the label data set')
 print(df.iloc[:, 16:22].isnull().sum())
+p = set(df['phylum'].values)
+print('phylum: %i :: %s' %(len(p),p))
+c = set(df['class'].values)
+print('class: %i :: %s' %(len(c),c))
+o = set(df['order'].values)
+print('order: %i :: %s' %(len(o),o))
+f = set(df['family'].values)
+print('family: %i :: %s' %(len(f),f))
+g = set(df['genus'].values)
+print('genus: %i :: %s' %(len(g),g))
+s = set(df['species'].values)
+print('species: %i :: %s' %(len(s),s))
+classes = [p, c, o, f, g, s]
 
 ###################################################################################
 #######################   Per Level Classifier  ###################################
@@ -153,9 +167,9 @@ lighting_param = 0.1
 #                                           oversample_technique=oversample_technique)
 #         data_rec_handler.load_rec(fold)
 #
-#         print('number of classes %i' % data_rec_handler.classes[rank_idx])
+#         print('number of classes %i' % classes[rank_idx])
 #         print('\tmodule ModelHandler.py: ')
-#         model = ModelHandler(classes=data_rec_handler.classes[rank_idx],
+#         model = ModelHandler(classes=classes[rank_idx],
 #                              batch_size=batch_size,
 #                              num_workers=num_workers,
 #                              metrics=metric,
@@ -194,10 +208,10 @@ lighting_param = 0.1
 #                                       create_recs=create_recs,
 #                                       oversample_technique=oversample_technique)
 #     data_rec_handler.load_rec()
-#     print('number of classes %i' %data_rec_handler.classes[rank_idx])
+#     print('number of classes %i' %classes[rank_idx])
 #
 #     print('\tmodule ModelHandler.py: ')
-#     model = ModelHandler(classes=data_rec_handler.classes[rank_idx],
+#     model = ModelHandler(classes=classes[rank_idx],
 #                          batch_size=batch_size,
 #                          num_workers=num_workers,
 #                          metrics=metric,
@@ -215,7 +229,7 @@ lighting_param = 0.1
 #                                 ext_storage_path=ext_storage_path,
 #                                 taxa='_%s' % taxa,
 #                                 data_handler=data_rec_handler)
-#
+
 print("########### Nested ###############")
 multilabel_lvl = 3 # relevant for model
 taxa = 'hierarchical' #relevant for RecordIO creation
@@ -245,7 +259,7 @@ for rank_idx, taxa_rank in enumerate(taxonomic_groups):
 
     print('number of classes %i' %data_rec_handler.classes[rank_idx])
     if rank_idx == 0:
-        model = ModelHandler(classes=data_rec_handler.classes[rank_idx],
+        model = ModelHandler(classes=classes[rank_idx],
                              batch_size=batch_size,
                              num_workers=num_workers,
                              metrics=metric,
@@ -258,9 +272,9 @@ for rank_idx, taxa_rank in enumerate(taxonomic_groups):
     else:
         model.add_layer(prior_param=prev_best_model,
                         rank_idx=rank_idx,
-                        classes=data_rec_handler.classes[rank_idx])
+                        classes=classes[rank_idx])
 
-    # if taxa_rank == 'phylum' or taxa_rank == 'class' or taxa_rank == 'order' or taxa_rank == 'family':
+    # if taxa_rank == 'phylum' or taxa_rank == 'class' or taxa_rank == 'order':
     #     prev_best_model = load_best_model(ext_storage_path=ext_storage_path,
     #                                       rank='_%s' % taxa_rank,
     #                                       dataset=dataset,
@@ -305,7 +319,7 @@ for rank_idx, taxa_rank in enumerate(taxonomic_groups):
 #                                   oversample_technique=oversample_technique)
 # data_rec_handler.load_rec(fold)
 # print('number of classes %i' %data_rec_handler.classes[rank_idx])
-# model = ModelHandler(classes=data_rec_handler.classes[rank_idx],
+# model = ModelHandler(classes=classes[rank_idx],
 #                      batch_size=batch_size,
 #                      num_workers=num_workers,
 #                      metrics=metric,

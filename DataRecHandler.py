@@ -32,9 +32,9 @@ class DataRecHandler:
         self.train_ratio = 0.7
 
         # self.mode ='_orig_tt-split_SL'
-        self.mode ='_orig_tt-split_ML'
+        # self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
-        # self.mode ='_oversampled_tt-split_ML'
+        self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'

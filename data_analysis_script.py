@@ -112,12 +112,21 @@ def plot_class_dist(x, y, colors, title, label_x, ax=None):
     # for i, val in enumerate(y_fun):
     #     ax.text(i, val, float(val), horizontalalignment='center', verticalalignment='bottom', fontdict={'fontweight':500, 'size':12})
     if not label_x:
+        # plt.tick_params(
+        #     axis='x',  # changes apply to the x-axis
+        #     which='both',  # both major and minor ticks are affected
+        #     bottom=False,  # ticks along the bottom edge are off
+        #     top=False,  # ticks along the top edge are off
+        #     labelbottom=False)
+        # plt.gca().set_xticklabels(x)#, fontsize=15)
         plt.tick_params(
             axis='x',  # changes apply to the x-axis
             which='both',  # both major and minor ticks are affected
             bottom=False,  # ticks along the bottom edge are off
             top=False,  # ticks along the top edge are off
-            labelbottom=False)
+            labelbottom=False,
+            labeltop=True,
+            labelrotation=60)
     else:
         # x ticks
         plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right', fontsize=15)
@@ -229,14 +238,50 @@ def plot_fun(df_fun, figure_path):
         color = colors[i]
 
         ax = fig.add_subplot(2, 3, subplot)
-        plot_class_dist(x=d.keys(),
-                        y=d.values(),
-                        colors=color,
-                        title=title,
-                        label_x = False,
-                        ax=ax)
+        x = [(k if v > 50 else '') for (k, v) in d.items()]
+        print(x)
+        print(d.keys())
+        print(len(x))
+        print(len(d.keys()))
+        # plot_class_dist(x=d.keys(),
+        #                 y=d.values(),
+        #                 colors=color,
+        #                 title=title,
+        #                 label_x = x,
+        #                 ax=ax)
+
+
+        class_plot = ax.bar(d.keys(), d.values(), color=color)
+
+        # plt.gca().set_xticklabels(x, rotation=60, horizontalalignment='right', fontsize=15)
+        if i < 3: #only for phylum, class, order
+            plt.xticks(ticks=range(len(d.keys())), labels=x, fontsize=10)
+            plt.tick_params(
+                axis='x',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                bottom=False,  # ticks along the bottom edge are off
+                top=False,  # ticks along the top edge are off
+                labelbottom=False,
+                labeltop=True,
+                labelrotation=90)
+        else:
+            plt.tick_params(
+                axis='x',  # changes apply to the x-axis
+                which='both',  # both major and minor ticks are affected
+                bottom=False,  # ticks along the bottom edge are off
+                top=False,  # ticks along the top edge are off
+                labelbottom=False)
+        plt.yticks(fontsize=15)
+        # removing top and right borders
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.text(.9, .95, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
+        # labels
+        plt.ylabel("#", fontsize=15)
+
         subplot+=1
             # ax.text(0.5, 0.5, str((2, 3, i)),fontsize=18, ha='center')
+
     plt.tight_layout()
     fig_file = os.path.join(figure_path, 'data__rank_dist_-_fds.png')
     plt.savefig(fig_file, bbox_inches='tight')
@@ -687,18 +732,25 @@ def get_comparisonDF(path):
 
 # pathes to datasets that need to be analyzed and taxonomic classification file
 # path_fun = '/home/stillsen/Documents/Data/Image_classification_soil_fungi'
-path_fun = "/home/stillsen/Documents/Data/Fungi_IC__new_set"
-tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
+path_fun = "/home/stillsen/Documents/Data/rec"
+tax_file_fun = 'im.merged.v10032020_unique_id_set__mv_imuted.csv'
 
 # epochs = 20
 # storage_path = '/media/stillsen/Elements SE/Data/'
 
 # path='/home/stillsen/Documents/Data/Results/PerformancePlot_SL'
-path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
+# path='/home/stillsen/Documents/Data/Results/PerformancePlot_ML'
 # path='/home/stillsen/Documents/Data/Results/ComparisionPlot'
 # path='/home/stillsen/Documents/Data/Results/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_SL'
 # path='/home/stillsen/Documents/Data/Results/StabilityPlot_ML'
+#######
+# path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_SL'
+# path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_ML'
+# path='/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
+# path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_HC'
+# path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_SL'
+# path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_ML'
 #missing value definition
 missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
@@ -709,8 +761,8 @@ df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
 df_fun = prepare_fun_df(df_fun)
 
 # ## figures
-plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results/statistics')
+plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results_imv/statistics')
 # plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
 # get_comparisonDF(path=path)
-# plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
+# plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
 plt.show()
