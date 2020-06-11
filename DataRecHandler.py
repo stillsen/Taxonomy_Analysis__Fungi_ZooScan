@@ -34,20 +34,22 @@ class DataRecHandler:
         # self.mode ='_orig_tt-split_SL'
         # self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
-        self.mode ='_oversampled_tt-split_ML'
+        # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'
-        # self.mode ='_oversampled_xval_ML'
+        self.mode ='_oversampled_xval_ML'
 
         self.root_path = root_path
+
+        csv_path = os.path.join(self.root_path, 'im.merged.v10032020_unique_id_set.csv')
+        # 1) set up one global unique mapping df, containing one col with all taxons and one with all ids -> self._get_global_mapping
+        self._build_global_mapping(csv_path)
 
         if self.mode.split('_')[-2]=='tt-split' and self.mode.split('_')[-3]=='oversampled':
             # creating train separately
             self.rank_path = os.path.join(root_path, rank_name, 'train')
             self.file_prefix = self.rank_path + '/' + self.rank + '_train'  + self.mode
-            self.classes = dict()
-            self.classes[rank_idx] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1 #need get all classes, that's why not in train
             if create_recs: # create train and test folders
                 self.sample()
             self._get_samples_p_class()
@@ -60,14 +62,12 @@ class DataRecHandler:
             self.file_prefix = self.rank_path + '/' + self.rank + '_test' + self.mode
             self._get_samples_p_class()
             if create_recs:
-                # self._oversample(technique=oversample_technique) !!! VERY IMPORTANT TO NOT OVERSAMPLE TEST, AS IT BIASES THE PCC
+                # self._oversample(technique=oversample_technique) !!! VERY IMPORTANT TO NOT OVERSAMPLE TEST, AS IT BIASES PCC
                 self._create_recordIO()
             self.rank_path = os.path.join(root_path, rank_name)
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
             self._get_samples_p_class()
         elif self.mode.split('_')[-2] == 'xval' and self.mode.split('_')[-3] == 'oversampled': #!!! VERY IMPORTANT TO NOT OVERSAMPLE TEST, AS IT BIASES THE PCC
-            self.classes = dict()
-            self.classes[rank_idx] = len([x[0] for x in os.walk(os.path.join(self.root_path, rank_name))]) - 1  # need get all classes, that's why not in train
             max_class_count = 0
             for i in range(k):
                 # creating X0 separately
@@ -90,8 +90,6 @@ class DataRecHandler:
         else:
             self.rank_path = os.path.join(root_path, rank_name)
             self.file_prefix = self.rank_path + '/' + self.rank + self.mode
-            self.classes = dict()
-            self.classes[rank_idx] = len([x[0] for x in os.walk(self.rank_path)]) - 1
             self._get_samples_p_class()
             # oversample and create rec lists
             if create_recs:
@@ -99,8 +97,6 @@ class DataRecHandler:
                     self._oversample(technique=oversample_technique)
                 self._create_recordIO()
 
-        # self._load_ids(root_path, batch_size, num_workers, augment)
-        # self._set_data_sets(batch_size=batch_size,fold=fold,num_workers=num_workers)
 
     def _get_samples_p_class(self):
         subdirs = os.listdir(self.rank_path)
@@ -254,7 +250,7 @@ class DataRecHandler:
                 to_path = os.path.join(test_path, label)
                 shutil.copy(file, to_path)
 
-    def _create_ml_list(self, mapping_df):
+    def __deprecated__create_ml_list(self, mapping_df):
         # create mapping dicts
         id2taxon = mapping_df.to_dict()['taxon']
         # taxon2id = {v: k for k, v in id2taxon.items()}
@@ -445,18 +441,116 @@ class DataRecHandler:
         mapping_df = pd.DataFrame(taxon2id.items())
         return mapping_df
 
-    def _make_unique_mapping_lists(self, mapping_part):
-        mapping = dict()
-        taxon2id = dict()
+    def _create_ml_list(self):
+        # create mapping dicts
+        # id2taxon = mapping_df.to_dict()['taxon']
+        id2taxon = self.global_mapping.to_dict()['taxon']
         missing_values = ['', 'unknown', 'unclassified', 'unidentified']
         taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
         csv_path = os.path.join(self.root_path, 'im.merged.v10032020_unique_id_set.csv')
         df = pd.read_csv(csv_path, na_values=missing_values)[taxonomic_groups]
 
-        for k in mapping_part:
-            for index, row in mapping_part[k].iterrows():
-                if row['taxon'] not in mapping:
-                    mapping[row['taxon']] = len(mapping)
+        if self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled':
+            mapping_part = dict()
+            for tt in ['_train','_test']:
+                for fold in range(self.k):
+                    file_prefix = self.file_prefix+'_'+str(fold)+tt
+                    # list_name = file_prefix + '_' + str(fold) + '.lst'
+                    list_name = file_prefix + '.lst'
+                    list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+                    new_list = ""
+                    for index, row in list_df.iterrows():
+                        new_list = new_list + str(row['id'])
+                        taxon = id2taxon[row['label']]
+                        higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
+                        for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
+                            global_label = self.global_mapping.loc[self.global_mapping['taxon']==item]['id'].values[0]
+                            new_list = new_list + '\t' + str(global_label)
+                        new_list = new_list + '\t' + row['file'] + '\n'
+                    with open(list_name, 'wt') as out_file:
+                        out_file.write(new_list)
+
+        elif self.file_prefix.split('_')[-2]=='xval':
+            ## building list
+            for fold in range(self.k):
+                # load list as df
+                list_name = self.file_prefix + '_' + str(fold) + '.lst'
+                list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+                new_list = ""
+                for index, row in list_df.iterrows():
+                    new_list = new_list + str(row['id'])
+                    taxon = id2taxon[row['label']]
+                    higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
+                    for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
+                        global_label = self.global_mapping.loc[self.global_mapping['taxon'] == item]['id'].values[0]
+                        new_list = new_list + '\t' + str(global_label)
+                    new_list = new_list + '\t' + row['file'] + '\n'
+                    fn = self.file_prefix + '_' + str(fold) + '.lst'
+                with open(fn, 'wt') as out_file:
+                    out_file.write(new_list)
+
+
+        if self.file_prefix.split('_')[-2]=='tt-split' and self.file_prefix.split('_')[-3]=='orig':
+            train_list_name = self.file_prefix + '_train' + '.lst'
+            train_list_df = pd.read_csv(train_list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+            new_list = ""
+            for index, row in train_list_df.iterrows():
+                new_list = new_list + str(row['id'])
+                taxon = id2taxon[row['label']]
+                higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
+                for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
+                    global_label = self.global_mapping.loc[self.global_mapping['taxon'] == item]['id'].values[0]
+                    new_list = new_list + '\t' + str(global_label)
+                new_list = new_list + '\t' + row['file'] + '\n'
+                fn = self.file_prefix + '_train' + '.lst'
+            with open(fn, 'wt') as out_file:
+                out_file.write(new_list)
+            # load test list as df
+            test_list_name = self.file_prefix + '_test' + '.lst'
+            test_list_df = pd.read_csv(test_list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+            new_list = ""
+            for index, row in test_list_df.iterrows():
+                new_list = new_list + str(row['id'])
+                taxon = id2taxon[row['label']]
+                higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
+                for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
+                    global_label = self.global_mapping.loc[self.global_mapping['taxon'] == item]['id'].values[0]
+                    new_list = new_list + '\t' + str(global_label)
+                new_list = new_list + '\t' + row['file'] + '\n'
+                fn = self.file_prefix + '_test' + '.lst'
+            with open(fn, 'wt') as out_file:
+                out_file.write(new_list)
+
+        if self.file_prefix.split('_')[-2]=='tt-split' and self.file_prefix.split('_')[-3]=='oversampled':
+            # load train list as df
+            list_name = self.file_prefix + '.lst'
+            list_df = pd.read_csv(list_name, sep='\t', names=['id', 'label', 'file'], header=None)
+            new_list = ""
+            for index, row in list_df.iterrows():
+                new_list = new_list + str(row['id'])
+                taxon = id2taxon[row['label']]
+                higher_taxons = df.loc[df['species'] == taxon].iloc[0, :]
+                for i, item in enumerate(higher_taxons.to_list()):  # add additional labels
+                    global_label = self.global_mapping.loc[self.global_mapping['taxon'] == item]['id'].values[0]
+                    new_list = new_list + '\t' + str(global_label)
+                new_list = new_list + '\t' + row['file'] + '\n'
+                fn = self.file_prefix + '.lst'
+            with open(fn, 'wt') as out_file:
+                out_file.write(new_list)
+
+
+    def _make_unique_global_mapping_lists(self, mapping_part, csv_path):
+        global_taxon_col = []
+        global_id_col = []
+        # mapping = dict()
+        missing_values = ['', 'unknown', 'unclassified', 'unidentified']
+        taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+        df = pd.read_csv(csv_path, na_values=missing_values)[taxonomic_groups]
+
+        # for k in mapping_part:
+        #     for index, row in mapping_part[k].iterrows():
+        #         if row['taxon'] not in mapping:
+        #             mapping[row['taxon']] = len(mapping)
 
         for i in range(self.k):
             # open list file
@@ -468,21 +562,92 @@ class DataRecHandler:
                     new_list = new_list + str(row['id'])
                     label = row['label']
                     taxon = mapping_part[i]['taxon'].loc[mapping_part[i]['id']==label].values[0]
-                    new_list = new_list + '\t' + str(mapping[taxon])
+                    ###################################
+                    global_label = self.global_mapping.loc[self.global_mapping['taxon'] == taxon]['id'].values[0]
+                    global_taxon_col.append(taxon)
+                    global_id_col.append(global_label)
+                    new_list = new_list + '\t' + str(global_label)
+                    ###################################
+                    # new_list = new_list + '\t' + str(mapping[taxon])
                     abs_path = os.path.join(self.root_path, self.rank, 'x%s%s' %(i,tt), row['file'])
-                    # new_list = new_list + '\t' + row['file'] + '\n'
                     new_list = new_list + '\t' + abs_path + '\n'
                 # print('##########')
                 with open(list_name, 'wt') as out_file:
                     out_file.write(new_list)
         m_df = pd.DataFrame()
-        m_df['taxon'] = mapping.keys()
-        m_df['id'] = mapping.values()
+        # m_df['taxon'] = mapping.keys()
+        # m_df['id'] = mapping.values()
+        m_df['taxon'] = global_taxon_col
+        m_df['id'] = global_id_col
         return m_df
+
+    def _transform_to_global_mapping(self, mapping_df, list_path):
+        global_taxon_col = []
+        global_id_col = []
+
+        id2taxon = mapping_df.to_dict()['taxon']
+        list_df = pd.read_csv(list_path, sep='\t', names=['id', 'label', 'file'], header=None)
+
+        new_list = ""
+        for index, row in list_df.iterrows():# process list file line by line
+            new_list = new_list + str(row['id'])
+            taxon = id2taxon[row['label']]
+            global_label = self.global_mapping.loc[self.global_mapping['taxon'] == taxon]['id'].values[0]
+            global_taxon_col.append(taxon)
+            global_id_col.append(global_label)
+            new_list = new_list + '\t' + str(global_label)
+            new_list = new_list + '\t' + row['file'] + '\n'
+        # print('##########')
+        with open(list_path, 'wt') as out_file:
+            out_file.write(new_list)
+
+        m_df = pd.DataFrame()
+        m_df['taxon'] = global_taxon_col
+        m_df['id'] = global_id_col
+        return m_df
+
+    def _build_global_mapping(self, csv_path):
+        # try to load global mapping csv, if not exist build
+        if os.path.exists(os.path.join(self.root_path, 'global_mapping.csv')):
+            print('loading global mapping')
+            self.global_mapping = pd.read_csv(os.path.join(self.root_path, 'global_mapping.csv'))
+        else:
+            print('creating global mapping')
+            taxon_col = []
+            id_col = []
+            missing_values = ['', 'unknown', 'unclassified', 'unidentified']
+            taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
+            df = pd.read_csv(csv_path, na_values=missing_values)[taxonomic_groups]
+
+            p = set(df['phylum'].values)
+            c = set(df['class'].values)
+            o = set(df['order'].values)
+            f = set(df['family'].values)
+            g = set(df['genus'].values)
+            s = set(df['species'].values)
+            taxon_col.extend(list(p))
+            taxon_col.extend(list(c))
+            taxon_col.extend(list(o))
+            taxon_col.extend(list(f))
+            taxon_col.extend(list(g))
+            taxon_col.extend(list(s))
+            id_col = list(range(len(taxon_col)))
+
+            self.global_mapping = pd.DataFrame()
+            self.global_mapping['taxon'] = taxon_col
+            self.global_mapping['id'] = id_col
+
+            self.global_mapping.to_csv(os.path.join(self.root_path, 'global_mapping.csv'))
+
 
     def _create_recordIO(self):
         # creates lists for and RecordIO files
         # according to xval, orig_tt-split or oversampled_tt-split
+
+        csv_path = os.path.join(self.root_path, 'im.merged.v10032020_unique_id_set.csv')
+        # 1) set up one global unique mapping df, containing one col with all taxons and one with all ids -> self._get_global_mapping
+        # self._build_global_mapping(csv_path)
+        # 2) use this unique global mapping on ALL lists -> self._make_unique_mapping_lists
 
         # create lists
         if self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled':
@@ -494,21 +659,38 @@ class DataRecHandler:
                     i2r = Im2Rec([file_prefix, rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
                     raw_data = StringIO(i2r.str_mapping)
                     mapping_part[i] = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
-            mapping_df = self._make_unique_mapping_lists(mapping_part)
+            mapping_df = self._make_unique_global_mapping_lists(mapping_part, csv_path)
         elif self.file_prefix.split('_')[-2] == 'xval':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--chunks', str(self.k),'--num-thread', str(self.num_workers)])
+            raw_data = StringIO(i2r.str_mapping)
+            mapping = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+            for fold in range(self.k):
+                list_path = os.path.join(self.rank_path, self.file_prefix + '_' + str(fold) + '.lst')
+                mapping_new = self._transform_to_global_mapping(mapping, list_path)
+            mapping = mapping_new
         elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'orig':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.train_ratio),'--num-thread', str(self.num_workers)])
+            raw_data = StringIO(i2r.str_mapping)
+            mapping = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+            list_path = os.path.join(self.rank_path, self.file_prefix + '_train' + '.lst')
+            mapping_train = self._transform_to_global_mapping(mapping, list_path)
+            list_path = os.path.join(self.rank_path, self.file_prefix + '_test' + '.lst')
+            mapping_test = self._transform_to_global_mapping(mapping, list_path)
+            # mapping = mapping_train+'\n'+mapping_test
         elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
-
-        if not(self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled'):
-            # get the mapping
             raw_data = StringIO(i2r.str_mapping)
-            mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+            mapping = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
+            list_path = os.path.join(self.rank_path, self.file_prefix + '.lst')
+            mapping = self._transform_to_global_mapping(mapping, list_path)
+
+        # if not(self.file_prefix.split('_')[-2] == 'xval' and self.file_prefix.split('_')[-3] == 'oversampled'):
+        #     # get the mapping
+        #     raw_data = StringIO(i2r.str_mapping)
+        #     mapping_df = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
 
         if self.rank == 'all-in-one' or self.rank == 'hierarchical' : # add multi-labels
-            mapping_df = self._create_ml_list(mapping_df)
+            self._create_ml_list()
 
         # create RecordIO
         if self.rank == 'hierarchical' and  self.file_prefix.split('_')[-2] == 'xval':
@@ -577,7 +759,7 @@ class DataRecHandler:
             fout = self.file_prefix + '.lst'
             print('creating ' + fout)
             i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
-        mapping_df.to_csv(os.path.join(self.rank_path,'mapping.csv'))
+        self.global_mapping.to_csv(os.path.join(self.rank_path,'mapping.csv'))
 
     def load_rec(self, fold=0):
         label_width = 1
