@@ -75,6 +75,11 @@ class ModelHandler:
         self.multi_label_lvl = multi_label_lvl
         self.rank = rank_idx
 
+        # as output unit numbering always starts a 1, whereas labels are implemented continuously an offset it provided
+        # to downscale the label value to the match the number of the output unit
+        # phylum -> species
+        self.label_offset = [0, 6, 19, 50, 106, 194]
+
         self.net = self.setup_net(multi_label_lvl=multi_label_lvl,
                                   model_name=model_name,
                                   classes=classes,
@@ -170,7 +175,10 @@ class ModelHandler:
                 label = gluon.utils.split_and_load(batch.label[0][:,self.rank], ctx_list=ctx, batch_axis=0, even_split=False)
             else:
                 label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
+            label[0] = label[0] - self.label_offset[self.rank]
+            # print(label[0].asnumpy().tolist())
             outputs = [net(X) for X in data]
+            # print(outputs[0].asnumpy().argmax(axis=1))
             if self.multi_label_lvl == 2 :
                 for i, o in enumerate(outputs[0]):
                     l = nd.slice_axis(label[0], axis=1, begin=i, end=i + 1)
@@ -252,11 +260,16 @@ class ModelHandler:
                 # data = gluon.utils.split_and_load(batch.data, ctx_list=ctx, batch_axis=0, even_split=False)
                 # label = gluon.utils.split_and_load(batch.label, ctx_list=ctx, batch_axis=0, even_split=False)
                 data = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
-                if self.multi_label_lvl == 3:
+                if self.multi_label_lvl == 3: # HC
                     label = gluon.utils.split_and_load(batch.label[0][:, self.rank], ctx_list=ctx, batch_axis=0, even_split=False)
-                else:
+                else: #SL and ML
                     label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
-                if self.multi_label_lvl == 2:
+                    #####################
+                    # do I need to sperate SL from ML offsetting?
+                    if self.multi_label_lvl == 1:
+                        label[0] = label[0] - self.label_offset[self.rank]
+                    #####################
+                if self.multi_label_lvl == 2: #ML
                     l0 = list()
                     l1 = list()
                     l2 = list()
@@ -270,17 +283,23 @@ class ModelHandler:
                     o4 = list()
                     o5 = list()
                     l = nd.slice_axis(label[0], axis=1, begin=0, end=1)
-                    l0.append(l.reshape(len(l)))
+                    nl = l.reshape(len(l))
+                    l0.append(nl)
                     l = nd.slice_axis(label[0], axis=1, begin=1, end=2)
-                    l1.append(l.reshape(len(l)))
+                    nl = l.reshape(len(l)) - self.label_offset[1]
+                    l1.append(nl)
                     l = nd.slice_axis(label[0], axis=1, begin=2, end=3)
-                    l2.append(l.reshape(len(l)))
+                    nl = l.reshape(len(l)) - self.label_offset[2]
+                    l2.append(nl)
                     l = nd.slice_axis(label[0], axis=1, begin=3, end=4)
-                    l3.append(l.reshape(len(l)))
+                    nl = l.reshape(len(l)) - self.label_offset[3]
+                    l3.append(nl)
                     l = nd.slice_axis(label[0], axis=1, begin=4, end=5)
-                    l4.append(l.reshape(len(l)))
+                    nl = l.reshape(len(l)) - self.label_offset[4]
+                    l4.append(nl)
                     l = nd.slice_axis(label[0], axis=1, begin=5, end=6)
-                    l5.append(l.reshape(len(l)))
+                    nl = l.reshape(len(l)) - self.label_offset[5]
+                    l5.append(nl)
                     with ag.record():
                         outputs = [net(X) for X in data]
                         o0.append(outputs[0][0])
@@ -314,7 +333,7 @@ class ModelHandler:
                     trainer.step(batch_size)
                     #####################
                     for i, o in enumerate(outputs[0]):
-                        l = nd.slice_axis(label[0], axis=1, begin=i, end=i + 1)
+                        l = nd.slice_axis(label[0], axis=1, begin=i, end=i + 1)-self.label_offset[i]
                         metric[i].update(preds=o, labels=l)
                         acc_metric[i].update(preds=o, labels=l)
                     #####################

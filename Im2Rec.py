@@ -33,9 +33,10 @@ except ImportError:
 
 
 class Im2Rec:
+    # def __init__(self, argus, gm):
     def __init__(self, argus):
         self.str_mapping = ''
-
+        # self.gm = gm
         args = self.parse_args(argus)
         # if the '--list' is used, it generates .lst file
         if args.list:
@@ -131,6 +132,12 @@ class Im2Rec:
                     if os.path.isfile(fpath) and (suffix in exts):
                         if path not in cat:
                             cat[path] = len(cat)
+                            #
+                            # taxon = path.split('/')[-1]
+                            # if taxon not in ['phylum', 'class', 'order', 'family', 'genus', 'species']:
+                            #     cat[path] = self.gm.loc[self.gm['taxon'] == taxon]['id'].values[0]
+                            #
+                            #
                         yield (i, os.path.relpath(fpath, root), cat[path])
                         i += 1
             for k, v in sorted(cat.items(), key=lambda x: x[1]):

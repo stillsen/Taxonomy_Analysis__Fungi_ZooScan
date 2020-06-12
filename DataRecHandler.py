@@ -32,13 +32,13 @@ class DataRecHandler:
         self.train_ratio = 0.7
 
         # self.mode ='_orig_tt-split_SL'
-        # self.mode ='_orig_tt-split_ML'
+        self.mode ='_orig_tt-split_ML'
         # self.mode ='_oversampled_tt-split_SL'
         # self.mode ='_oversampled_tt-split_ML'
         # self.mode ='_orig_xval_SL'
         # self.mode ='_orig_xval_ML'
         # self.mode ='_oversampled_xval_SL'
-        self.mode ='_oversampled_xval_ML'
+        # self.mode ='_oversampled_xval_ML'
 
         self.root_path = root_path
 
@@ -598,6 +598,7 @@ class DataRecHandler:
             new_list = new_list + '\t' + str(global_label)
             new_list = new_list + '\t' + row['file'] + '\n'
         # print('##########')
+        shutil.copy(list_path, list_path[:-4]+'_no_global_mapping.lst')
         with open(list_path, 'wt') as out_file:
             out_file.write(new_list)
 
@@ -669,14 +670,15 @@ class DataRecHandler:
                 mapping_new = self._transform_to_global_mapping(mapping, list_path)
             mapping = mapping_new
         elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'orig':
-            i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.train_ratio),'--num-thread', str(self.num_workers)])
+            # i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.train_ratio),'--num-thread', str(self.num_workers)], self.global_mapping)
+            i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--test-ratio', str(self.test_ratio), '--train-ratio', str(self.train_ratio), '--num-thread',str(self.num_workers)])
             raw_data = StringIO(i2r.str_mapping)
             mapping = pd.read_csv(raw_data, sep=' ', names=['taxon', 'id'], header=None)
             list_path = os.path.join(self.rank_path, self.file_prefix + '_train' + '.lst')
-            mapping_train = self._transform_to_global_mapping(mapping, list_path)
+            self._transform_to_global_mapping(mapping, list_path)
             list_path = os.path.join(self.rank_path, self.file_prefix + '_test' + '.lst')
-            mapping_test = self._transform_to_global_mapping(mapping, list_path)
-            # mapping = mapping_train+'\n'+mapping_test
+            self._transform_to_global_mapping(mapping, list_path)
+            mapping.to_csv(self.file_prefix+'.mapping')
         elif self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
             i2r = Im2Rec([self.file_prefix, self.rank_path, '--recursive', '--list', '--pack-label', '--num-thread', str(self.num_workers)])
             raw_data = StringIO(i2r.str_mapping)
@@ -753,13 +755,15 @@ class DataRecHandler:
             print('creating ' + fout)
             list_arg = self.file_prefix + '_test' + '.lst'
             print('creating ' + list_arg)
+            # i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)], self.global_mapping)
+            # i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)], self.global_mapping)
             i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
             i2r = Im2Rec([list_arg, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
         if self.file_prefix.split('_')[-2] == 'tt-split' and self.file_prefix.split('_')[-3] == 'oversampled':
             fout = self.file_prefix + '.lst'
             print('creating ' + fout)
             i2r = Im2Rec([fout, self.rank_path, '--recursive', '--pass-through', '--num-thread', str(self.num_workers)])
-        self.global_mapping.to_csv(os.path.join(self.rank_path,'mapping.csv'))
+        # self.global_mapping.to_csv(os.path.join(self.rank_path,'mapping.csv'))
 
     def load_rec(self, fold=0):
         label_width = 1
