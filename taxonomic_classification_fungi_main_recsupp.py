@@ -96,8 +96,8 @@ multilabel_lvl = 1
 k = 5
 
 epochs = 20
-learning_rate = 0.001
-# learning_rate = 0.0001
+# learning_rate = 0.001
+learning_rate = 0.0001
 # learning_rate = 0.4
 momentum = 0.8
 
@@ -177,7 +177,8 @@ lighting_param = 0.1
 #                              momentum=momentum,
 #                              multi_label_lvl=multilabel_lvl,
 #                              model_name=net_name,
-#                              rank_idx=rank_idx)
+#                              rank_idx=rank_idx,
+#                              wd=0.01)
 #         ### load parameters if already trained, otherwise train
 #         model = load_or_train_model(model=model,
 #                                     dataset=dataset,
@@ -191,149 +192,154 @@ lighting_param = 0.1
 
 
 
-
+#
 # ###################################################################################
 # print("############ tt-split #############")
 # ###################################################################################
 # print("Per Level Classifier  ")
-# for rank_idx, taxa in enumerate(taxonomic_groups):
-#     print('t-split for %s' % (taxa))
-#     create_recs = True
-#     data_rec_handler = DataRecHandler(root_path=path,
-#                                       rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
-#                                       rank_idx=rank_idx,
-#                                       batch_size=batch_size,
-#                                       num_workers=num_workers,
-#                                       k=k,
-#                                       create_recs=create_recs,
-#                                       oversample_technique=oversample_technique)
-#     data_rec_handler.load_rec()
-#     print('number of classes %i' %classes[rank_idx])
+# # for rank_idx, taxa in enumerate(taxonomic_groups):
+# #     print('t-split for %s' % (taxa))
+# taxa = 'genus'
+# rank_idx = 4
+# create_recs = True
+# data_rec_handler = DataRecHandler(root_path=path,
+#                                   rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
+#                                   rank_idx=rank_idx,
+#                                   batch_size=batch_size,
+#                                   num_workers=num_workers,
+#                                   k=k,
+#                                   create_recs=create_recs,
+#                                   oversample_technique=oversample_technique)
+# data_rec_handler.load_rec()
+# print('number of classes %i' %classes[rank_idx])
 #
-#     print('\tmodule ModelHandler.py: ')
-#     model = ModelHandler(classes=classes[rank_idx],
-#                          batch_size=batch_size,
-#                          num_workers=num_workers,
-#                          metrics=metric,
-#                          learning_rate=learning_rate,
-#                          momentum=momentum,
-#                          multi_label_lvl=multilabel_lvl,
-#                          model_name=net_name,
-#                          rank_idx=rank_idx)
+# print('\tmodule ModelHandler.py: ')
+# model = ModelHandler(classes=classes[rank_idx],
+#                      batch_size=batch_size,
+#                      num_workers=num_workers,
+#                      metrics=metric,
+#                      learning_rate=learning_rate,
+#                      momentum=momentum,
+#                      multi_label_lvl=multilabel_lvl,
+#                      model_name=net_name,
+#                      rank_idx=rank_idx,
+#                      wd=0.0001)
 #
-#     ### load parameters if already trained, otherwise train
-#     model = load_or_train_model(model=model,
-#                                 dataset=dataset,
-#                                 mode='per_lvl_tt-split',
-#                                 epochs=epochs,
-#                                 ext_storage_path=ext_storage_path,
-#                                 taxa='_%s' % taxa,
-#                                 data_handler=data_rec_handler)
+# ### load parameters if already trained, otherwise train
+# model = load_or_train_model(model=model,
+#                             dataset=dataset,
+#                             mode='per_lvl_tt-split',
+#                             epochs=epochs,
+#                             ext_storage_path=ext_storage_path,
+#                             taxa='_%s' % taxa,
+#                             data_handler=data_rec_handler)
 
-# print("########### Nested ###############")
-# multilabel_lvl = 3 # relevant for model
-# taxa = 'hierarchical' #relevant for RecordIO creation
-# prev_best_model = None
-# oversample_technique='naiveOversampled'
-# # oversample_technique=None
-# # k=7
-# # --> set dataRecHandler to appropriate --------------------> Each Level Needs it's own dataset: simulate with crossval and fold, k=7 <---------------
-# # also for orig use mode ='_oversampled_xval_ML' but with oversample commented out
-# for rank_idx, taxa_rank in enumerate(taxonomic_groups):
-#     print('hierarchical tt-split for %s %s' %(taxa, taxa_rank))
-#
-#     if rank_idx==0:
-#         create_recs = True
-#         data_rec_handler = DataRecHandler(root_path=path,
-#                                           rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
-#                                           rank_idx=rank_idx,
-#                                           batch_size=batch_size,
-#                                           num_workers=num_workers,
-#                                           k=k,
-#                                           create_recs=create_recs,
-#                                           oversample_technique=oversample_technique)
-#     else:
-#         create_recs = False
-#
-#     data_rec_handler.load_rec(rank_idx)
-#
-#     print('number of classes %i' %data_rec_handler.classes[rank_idx])
-#     if rank_idx == 0:
-#         model = ModelHandler(classes=classes[rank_idx],
-#                              batch_size=batch_size,
-#                              num_workers=num_workers,
-#                              metrics=metric,
-#                              learning_rate=learning_rate,
-#                              momentum=momentum,
-#                              multi_label_lvl=multilabel_lvl,
-#                              model_name=net_name,
-#                              rank_idx=rank_idx,
-#                              prior_param=prev_best_model)
-#     else:
-#         model.add_layer(prior_param=prev_best_model,
-#                         rank_idx=rank_idx,
-#                         classes=classes[rank_idx])
-#
-#     # if taxa_rank == 'phylum' or taxa_rank == 'class' or taxa_rank == 'order':
-#     #     prev_best_model = load_best_model(ext_storage_path=ext_storage_path,
-#     #                                       rank='_%s' % taxa_rank,
-#     #                                       dataset=dataset,
-#     #                                       mode='chained_per-lvl')
-#     #     model.net.load_parameters(prev_best_model)
-#     # else:
-#     model = load_or_train_model(model=model,
-#                                 dataset=dataset,
-#                                 mode='chained_per-lvl',
-#                                 epochs=epochs,
-#                                 ext_storage_path=ext_storage_path,
-#                                 taxa='_%s' % taxa_rank,
-#                                 data_handler=data_rec_handler)
-#     if model.best_model is not None:
-#         prev_best_model = os.path.join(ext_storage_path, model.best_model)
-#         print('previous best model: %s'%prev_best_model)
+print("########### Nested ###############")
+multilabel_lvl = 3 # relevant for model
+taxa = 'hierarchical' #relevant for RecordIO creation
+prev_best_model = None
+oversample_technique='naiveOversampled'
+# oversample_technique=None
+# k=7
+# --> set dataRecHandler to appropriate --------------------> Each Level Needs it's own dataset: simulate with crossval and fold, k=7 <---------------
+# also for orig use mode ='_oversampled_xval_ML' but with oversample commented out
+for rank_idx, taxa_rank in enumerate(taxonomic_groups):
+    print('hierarchical tt-split for %s %s' %(taxa, taxa_rank))
 
-###################################################################################
-#######################   All in One Classifier  ##################################
-###################################################################################
-# PARAMETERS Training
-multilabel_lvl = 2
-oversample_technique = 'naiveOversampled'
-taxa = 'all-in-one'
-rank_idx=0
-fold=0
-print('working in all-in-one taxonomic classification')
-print('%i-fold crossvalidation for %s' % (k, taxa))
-for fold in range(k):
-    if fold == 0:
+    if rank_idx==0:
         create_recs = True
+        data_rec_handler = DataRecHandler(root_path=path,
+                                          rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
+                                          rank_idx=rank_idx,
+                                          batch_size=batch_size,
+                                          num_workers=num_workers,
+                                          k=k,
+                                          create_recs=create_recs,
+                                          oversample_technique=oversample_technique)
     else:
         create_recs = False
-# create_recs = True
-    data_rec_handler = DataRecHandler(root_path=path,
-                                      rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
-                                      rank_idx=rank_idx,
-                                      batch_size=batch_size,
-                                      num_workers=num_workers,
-                                      k=k,
-                                      create_recs=create_recs,
-                                      oversample_technique=oversample_technique)
-    data_rec_handler.load_rec(fold)
-    print('number of classes %i' %classes[rank_idx])
-    model = ModelHandler(classes=classes[rank_idx],
-                         batch_size=batch_size,
-                         num_workers=num_workers,
-                         metrics=metric,
-                         learning_rate=learning_rate,
-                         momentum=momentum,
-                         multi_label_lvl=multilabel_lvl,
-                         model_name=net_name,
-                         rank_idx=rank_idx)
 
-    model = load_or_train_model(model=model,
-                                dataset=dataset,
-                                mode='all-in-one',
-                                epochs=epochs,
-                                ext_storage_path=ext_storage_path,
-                                taxa='_%s' % taxa,
-                                data_handler=data_rec_handler,
-                                fold=fold)
+    data_rec_handler.load_rec(rank_idx)
+
+    print('number of classes %i' %data_rec_handler.classes[rank_idx])
+    if rank_idx == 0:
+        model = ModelHandler(classes=classes[rank_idx],
+                             batch_size=batch_size,
+                             num_workers=num_workers,
+                             metrics=metric,
+                             learning_rate=learning_rate,
+                             momentum=momentum,
+                             multi_label_lvl=multilabel_lvl,
+                             model_name=net_name,
+                             rank_idx=rank_idx,
+                             prior_param=prev_best_model,
+                             wd=0.01)
+    else:
+        model.add_layer(prior_param=prev_best_model,
+                        rank_idx=rank_idx,
+                        classes=classes[rank_idx])
+
+    if taxa_rank == 'phylum' or taxa_rank == 'class':
+        prev_best_model = load_best_model(ext_storage_path=ext_storage_path,
+                                          rank='_%s' % taxa_rank,
+                                          dataset=dataset,
+                                          mode='chained_per-lvl')
+        model.net.load_parameters(prev_best_model)
+    else:
+        model = load_or_train_model(model=model,
+                                    dataset=dataset,
+                                    mode='chained_per-lvl',
+                                    epochs=epochs,
+                                    ext_storage_path=ext_storage_path,
+                                    taxa='_%s' % taxa_rank,
+                                    data_handler=data_rec_handler)
+    if model.best_model is not None:
+        prev_best_model = os.path.join(ext_storage_path, model.best_model)
+        print('previous best model: %s'%prev_best_model)
+
+# ##################################################################################
+# ######################   All in One Classifier  ##################################
+# ##################################################################################
+# # PARAMETERS Training
+# multilabel_lvl = 2
+# oversample_technique = 'naiveOversampled'
+# taxa = 'all-in-one'
+# rank_idx=0
+# fold=0
+# print('working in all-in-one taxonomic classification')
+# print('%i-fold crossvalidation for %s' % (k, taxa))
+# # for fold in range(k):
+# #     if fold == 0:
+# #         create_recs = True
+# #     else:
+# #         create_recs = False
+# create_recs = True
+# data_rec_handler = DataRecHandler(root_path=path,
+#                                   rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
+#                                   rank_idx=rank_idx,
+#                                   batch_size=batch_size,
+#                                   num_workers=num_workers,
+#                                   k=k,
+#                                   create_recs=create_recs,
+#                                   oversample_technique=oversample_technique)
+# data_rec_handler.load_rec(fold)
+# print('number of classes %i' %classes[rank_idx])
+# model = ModelHandler(classes=classes[rank_idx],
+#                      batch_size=batch_size,
+#                      num_workers=num_workers,
+#                      metrics=metric,
+#                      learning_rate=learning_rate,
+#                      momentum=momentum,
+#                      multi_label_lvl=multilabel_lvl,
+#                      model_name=net_name,
+#                      rank_idx=rank_idx,
+#                      wd=0.01)
+#
+# model = load_or_train_model(model=model,
+#                             dataset=dataset,
+#                             mode='all-in-one',
+#                             epochs=epochs,
+#                             ext_storage_path=ext_storage_path,
+#                             taxa='_%s' % taxa,
+#                             data_handler=data_rec_handler,
+#                             fold=fold)

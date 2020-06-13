@@ -175,13 +175,14 @@ class ModelHandler:
                 label = gluon.utils.split_and_load(batch.label[0][:,self.rank], ctx_list=ctx, batch_axis=0, even_split=False)
             else:
                 label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
-            label[0] = label[0] - self.label_offset[self.rank]
+            if self.multi_label_lvl == 1 or self.multi_label_lvl == 3:
+                label[0] = label[0] - self.label_offset[self.rank]
             # print(label[0].asnumpy().tolist())
             outputs = [net(X) for X in data]
             # print(outputs[0].asnumpy().argmax(axis=1))
             if self.multi_label_lvl == 2 :
                 for i, o in enumerate(outputs[0]):
-                    l = nd.slice_axis(label[0], axis=1, begin=i, end=i + 1)
+                    l = nd.slice_axis(label[0], axis=1, begin=i, end=i + 1) - self.label_offset[i]
                     metric[i].update(preds=o, labels=l)
                 # print(metric.get()[1])
             else:
@@ -262,6 +263,7 @@ class ModelHandler:
                 data = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
                 if self.multi_label_lvl == 3: # HC
                     label = gluon.utils.split_and_load(batch.label[0][:, self.rank], ctx_list=ctx, batch_axis=0, even_split=False)
+                    label[0] = label[0] - self.label_offset[self.rank]
                 else: #SL and ML
                     label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
                     #####################
