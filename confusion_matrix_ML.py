@@ -108,25 +108,25 @@ def classifier_fn(images):
     return preds.asnumpy()
 
 
-path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/ML-e11_orig_tt-split'
-rec_path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/ML-e11_orig_tt-split/all-in-one'
-rec_prefix = 'all-in-one_orig_tt-split_ML_test'
-param_file = 'fun_all-in-one_all-in-one_e11_f0.param'
+path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/ML_e4_naiveOversampled_tt-split_ML_lr001_wd01'
+rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/ML_e4_naiveOversampled_tt-split_ML_lr001_wd01/test'
+rec_prefix = 'all-in-one_test_oversampled_tt-split_ML'
+global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
+param_file = 'fun_all-in-one_all-in-one_e4_f0.param'
 
-mapping_df = pd.read_csv(os.path.join(rec_path, 'mapping.csv'))
+label_offset = [0, 6, 19, 50, 106, 194]
 
 ############# load net ###############
 gpus = mx.test_utils.list_gpus()
 ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
 pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
-finetune_net = BigBangNet(p=5,
-                          c=11,
-                          o=27,
-                          f=46,
-                          g=68,
+finetune_net = BigBangNet(p=6,
+                          c=13,
+                          o=31,
+                          f=56,
+                          g=88,
                           s=166)
 finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
-finetune_net.collect_params().setattr('lr_mult', 10)
 finetune_net.feature = pretrained_net.features
 finetune_net.hybridize()
 finetune_net.load_parameters(os.path.join(path,param_file))
@@ -181,64 +181,70 @@ for i,batch in enumerate(test_data):
         if rank_idx not in preds:
             preds[rank_idx] = []
         p = pred[rank_idx][0].asnumpy()
-        preds[rank_idx].append(p.argmax())
+        preds[rank_idx].append(p.argmax()+label_offset[rank_idx])
 
-target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(phylum_labels)))]
+cm_path = os.path.join(path,'cms')
+if not os.path.exists(cm_path):
+    os.mkdir(cm_path)
+
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(phylum_labels)))]
 plot_confusion_matrix(
     y_true=phylum_labels,
     y_pred=preds[0],
     # target_names=list(phylum_taxon),
     target_names=target_names,
-    path=path,
+    path=cm_path,
     title='Confusion_Matrix-Phylum',
     normalize=False)
 
-target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(class_labels)))]
+# target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(class_labels)))]
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(set(class_labels))]
+print(target_names)
 plot_confusion_matrix(
     y_true=class_labels,
-    y_pred=preds[0],
+    y_pred=preds[1],
     # target_names=list(phylum_taxon),
     target_names=target_names,
-    path=path,
+    path=cm_path,
     title='Confusion_Matrix-Class',
     normalize=False)
 
-target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(order_labels)))]
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(order_labels)))]
 plot_confusion_matrix(
     y_true=order_labels,
-    y_pred=preds[0],
+    y_pred=preds[2],
     # target_names=list(phylum_taxon),
     target_names=target_names,
-    path=path,
+    path=cm_path,
     title='Confusion_Matrix-Order',
     normalize=False)
 
-target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(family_labels)))]
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(family_labels)))]
 plot_confusion_matrix(
     y_true=family_labels,
-    y_pred=preds[0],
+    y_pred=preds[3],
     # target_names=list(phylum_taxon),
     target_names=target_names,
-    path=path,
+    path=cm_path,
     title='Confusion_Matrix-Family',
     normalize=False)
 
-target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(genus_labels)))]
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(genus_labels)))]
 plot_confusion_matrix(
     y_true=genus_labels,
-    y_pred=preds[0],
+    y_pred=preds[4],
     # target_names=list(phylum_taxon),
     target_names=target_names,
-    path=path,
+    path=cm_path,
     title='Confusion_Matrix-Genus',
     normalize=False)
 
-target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(species_labels)))]
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(species_labels)))]
 plot_confusion_matrix(
     y_true=species_labels,
-    y_pred=preds[0],
+    y_pred=preds[5],
     # target_names=list(phylum_taxon),
     target_names=target_names,
-    path=path,
+    path=cm_path,
     title='Confusion_Matrix-Species',
     normalize=False)
