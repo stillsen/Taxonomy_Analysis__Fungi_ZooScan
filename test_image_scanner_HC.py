@@ -12,36 +12,80 @@ from mxnet.io import ImageRecordIter
 from ModelHandler import BigBangNet
 from mxnet import init, nd, ndarray, gluon
 
-
-
-path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/ML_e4_naiveOversampled_tt-split_ML_lr001_wd01'
-rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/ML_e4_naiveOversampled_tt-split_ML_lr001_wd01/test'
-rec_prefix = 'all-in-one_test_oversampled_tt-split_ML'
+path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/HC_naiveOversampled_tt-split_HC_lr001_wd01'
+rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/HC_naiveOversampled_tt-split_HC_lr001_wd01/hierarchical'
+p_rec_prefix = 'fun_chained_per-lvl_phylum_e11_f0'
+# p_rec_prefix = 'fun_chained_per-lvl_phylum_e18_f0'
+c_rec_prefix = 'fun_chained_per-lvl_class_e14_f0'
+o_rec_prefix = 'fun_chained_per-lvl_order_e18_f0'
+f_rec_prefix = 'fun_chained_per-lvl_family_e10_f0'
+g_rec_prefix = 'fun_chained_per-lvl_genus_e5_f0'
+s_rec_prefix = 'fun_chained_per-lvl_species_e5_f0'
 global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
-param_file = 'fun_all-in-one_all-in-one_e4_f0.param'
 
 label_offset = [0, 6, 19, 50, 106, 194]
 
 ############# load net ###############
 gpus = mx.test_utils.list_gpus()
 ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
+
 pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
-finetune_net = BigBangNet(p=6,
-                          c=13,
-                          o=31,
-                          f=56,
-                          g=88,
-                          s=166)
-finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
-finetune_net.feature = pretrained_net.features
-finetune_net.hybridize()
-finetune_net.load_parameters(os.path.join(path, param_file))
+p_finetune_net = get_model('densenet169', classes=6)
+p_finetune_net.collect_params().initialize(init.Xavier(), ctx=ctx)
+p_finetune_net.features = pretrained_net.features
+p_finetune_net.hybridize()
+p_finetune_net.load_parameters(os.path.join(path, p_rec_prefix+'.param'))
+
+c_finetune_net = gluon.nn.HybridSequential()
+with c_finetune_net.name_scope():
+    c_finetune_net.add(p_finetune_net)
+    next_layer = gluon.nn.Dense(13)
+    c_finetune_net.add(next_layer)
+c_finetune_net.collect_params().initialize()
+c_finetune_net.hybridize()
+c_finetune_net.load_parameters(os.path.join(path, c_rec_prefix+'.param'))
+
+o_finetune_net = gluon.nn.HybridSequential()
+with o_finetune_net.name_scope():
+    o_finetune_net.add(c_finetune_net)
+    next_layer = gluon.nn.Dense(31)
+    o_finetune_net.add(next_layer)
+o_finetune_net.collect_params().initialize()
+o_finetune_net.hybridize()
+o_finetune_net.load_parameters(os.path.join(path, o_rec_prefix+'.param'))
+
+f_finetune_net = gluon.nn.HybridSequential()
+with f_finetune_net.name_scope():
+    f_finetune_net.add(o_finetune_net)
+    next_layer = gluon.nn.Dense(56)
+    f_finetune_net.add(next_layer)
+f_finetune_net.collect_params().initialize()
+f_finetune_net.hybridize()
+f_finetune_net.load_parameters(os.path.join(path, f_rec_prefix+'.param'))
+
+g_finetune_net = gluon.nn.HybridSequential()
+with g_finetune_net.name_scope():
+    g_finetune_net.add(f_finetune_net)
+    next_layer = gluon.nn.Dense(88)
+    g_finetune_net.add(next_layer)
+g_finetune_net.collect_params().initialize()
+g_finetune_net.hybridize()
+g_finetune_net.load_parameters(os.path.join(path, g_rec_prefix+'.param'))
+
+s_finetune_net = gluon.nn.HybridSequential()
+with s_finetune_net.name_scope():
+    s_finetune_net.add(g_finetune_net)
+    next_layer = gluon.nn.Dense(166)
+    s_finetune_net.add(next_layer)
+s_finetune_net.collect_params().initialize()
+s_finetune_net.hybridize()
+s_finetune_net.load_parameters(os.path.join(path, s_rec_prefix+'.param'))
 
 ############# load data ##############
 test_data = ImageRecordIter(
-    path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
-    path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
-    path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
+    path_imgrec=os.path.join(rec_path, 'hierarchical_orig_tt-split_ML_test.rec'),
+    path_imgidx=os.path.join(rec_path, 'hierarchical_orig_tt-split_ML_test.idx'),
+    path_imglist=os.path.join(rec_path, 'hierarchical_orig_tt-split_ML_test.lst'),
     aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
     data_shape=(3, 224, 224),
     batch_size=1,
@@ -69,14 +113,19 @@ for i,batch in enumerate(test_data):
     genus_label = global_mapping.loc[global_mapping['id']==genus_label_id]['taxon'].values[0]
     species_label = global_mapping.loc[global_mapping['id']==species_label_id]['taxon'].values[0]
 
-    preds = finetune_net(image[0])
+    p_preds = p_finetune_net(image[0])
+    c_preds = c_finetune_net(image[0])
+    o_preds = o_finetune_net(image[0])
+    f_preds = f_finetune_net(image[0])
+    g_preds = g_finetune_net(image[0])
+    s_preds = s_finetune_net(image[0])
 
-    phylum_prediction_id = preds[0][0].asnumpy().argmax()
-    class_prediction_id = preds[1][0].asnumpy().argmax() + label_offset[1]
-    order_prediction_id = preds[2][0].asnumpy().argmax() + label_offset[2]
-    family_prediction_id = preds[3][0].asnumpy().argmax() + label_offset[3]
-    genus_prediction_id = preds[4][0].asnumpy().argmax() + label_offset[4]
-    species_prediction_id = preds[5][0].asnumpy().argmax() + label_offset[5]
+    phylum_prediction_id = p_preds[0].asnumpy().argmax()
+    class_prediction_id = c_preds[0].asnumpy().argmax() + label_offset[1]
+    order_prediction_id = o_preds[0].asnumpy().argmax() + label_offset[2]
+    family_prediction_id = f_preds[0].asnumpy().argmax() + label_offset[3]
+    genus_prediction_id = g_preds[0].asnumpy().argmax() + label_offset[4]
+    species_prediction_id = s_preds[0].asnumpy().argmax() + label_offset[5]
 
     phylum_prediction_label = global_mapping.loc[global_mapping['id']==phylum_prediction_id]['taxon'].values[0]
     class_prediction_label = global_mapping.loc[global_mapping['id']==class_prediction_id]['taxon'].values[0]
@@ -94,14 +143,7 @@ for i,batch in enumerate(test_data):
     score = sum(score)/6
 
     plt.imshow(img)
-    # label prediction score included
-    # text_str = str(i) + ') taxon: label - prediction\n'+\
-    #            'p:  ' + phylum_label + ' - ' + phylum_prediction_label + ' ' + str(preds[0][0].asnumpy()[phylum_prediction_id])[:4] +'\n'+\
-    #            'c:  ' + class_label + ' - ' + class_prediction_label + ' ' + str(preds[1][0].asnumpy()[class_prediction_id-label_offset[1]])[:4] + '\n'+\
-    #            'o:  ' + order_label + ' - ' + order_prediction_label + ' ' + str(preds[2][0].asnumpy()[order_prediction_id-label_offset[2]])[:4] + '\n'+\
-    #            'f:  ' + family_label + ' - ' + family_prediction_label + ' ' + str(preds[3][0].asnumpy()[family_prediction_id-label_offset[3]])[:4] + '\n'+\
-    #            'g:  ' + genus_label + ' - ' + genus_prediction_label + ' ' + str(preds[4][0].asnumpy()[genus_prediction_id-label_offset[4]])[:4] + '\n'+\
-    #            's:  ' + species_label + ' - ' + species_prediction_label +' ' + str(preds[5][0].asnumpy()[species_prediction_id-label_offset[5]])[:4]
+
     text_str = str(i) + ')  score:  ' + str(score)[:4] +'\n'\
                'taxon: label - prediction\n'+\
                'p:  ' + phylum_label + ' - ' + phylum_prediction_label +'\n'+\

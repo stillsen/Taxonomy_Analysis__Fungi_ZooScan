@@ -97,16 +97,6 @@ def plot_confusion_matrix(y_true,
     plt.savefig(os.path.join(path, title+'.png'), bbox_inches='tight')
     plt.show()
 
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
-
-def classifier_fn(images):
-    preds = finetune_net(transform(nd.array(images)))
-    # preds = finetune_net(transform(mx.nd.array(images[np.newaxis,:,:,:])))
-    return preds.asnumpy()
-
 
 path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/ML_e4_naiveOversampled_tt-split_ML_lr001_wd01'
 rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/ML_e4_naiveOversampled_tt-split_ML_lr001_wd01/test'
