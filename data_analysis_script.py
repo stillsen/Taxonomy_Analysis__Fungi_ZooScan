@@ -14,6 +14,38 @@ import pickle
 import os.path
 from os import path
 from collections import Counter
+import math
+
+def kullback_leibler_div(d, e):
+    kld = 0
+    for i in range(len(d)):
+        kld += d[i] * math.log(d[i]/e)
+    return kld
+
+def eucl_dist(d, e):
+    eucld = 0
+    for i in range(len(d)):
+        eucld += math.pow(d[i] - e, 2)
+    return math.sqrt(eucld)
+
+def imbalance_degree(zeta, k, m):
+    e = 1/k
+    # iota = [i/606 for i in [1]*m]
+    major_all_but_one = [1/k] * (k-m-1)
+    major_one = [1-(k-m-1)/k]
+    iota = [0] * m + major_all_but_one + major_one
+    # d = kullback_leibler_div(zeta,e)
+    # d_worst = kullback_leibler_div(iota,e)
+    d = eucl_dist(zeta,e)
+    d_worst = eucl_dist(iota,e)
+    id = d/d_worst+(m-1)
+    return id
+
+def lrid(d, k):
+    lrid = 0
+    for i in range(k):
+        lrid = lrid + d[i] * math.log(sum(d)/(k*d[i]))
+    return -2*lrid
 
 def key_fn(item):
     rv = None
@@ -232,17 +264,29 @@ def plot_fun(df_fun, figure_path):
         if np.nan in d:
             d['unclassified'] = d.pop(np.nan)
         # title = '%s Distribution - Fungi Dataset'%taxa
-        title = str(rank)+'      \navg: '+str(avg_samples_per_rank[i])[:5]+'\nsem: '+str(sem_per_rank[i])[:5]
+        # title = str(rank)+'      \nN/K: '+str(avg_samples_per_rank[i])[:5]+'\nsem: '+str(sem_per_rank[i])[:5]
+        k = len(d)
+        zeta = [i/sum(d.values()) for i in d.values()]
+        majority_classes_idx = [i for i, v in enumerate(zeta) if v >= (1 / k)]
+        majority_classes = [list(d.keys())[i] for i in majority_classes_idx]
+        print(majority_classes)
+        m = [i for i in zeta if i < (1 / k)]
+        zeta = [i for i in d.values()]
+
+        title = str(rank) + '    \nC: ' + str(k) + '\nMC -: ' + str(len(m)) + '\nN/C: ' + str(avg_samples_per_rank[i])[:5] + '\nLRID: ' + str(lrid(zeta, k))[:5]
         # title = ''
         #set color accordingly
         color = colors[i]
 
         ax = fig.add_subplot(2, 3, subplot)
-        x = [(k if v > 50 else '') for (k, v) in d.items()]
-        print(x)
-        print(d.keys())
-        print(len(x))
-        print(len(d.keys()))
+        lim = ((1 / k) * sum(d.values()))
+        x = [(k if v > lim else '') for (k, v) in d.items()]
+        # x = [(k if v > 50 else '') for (k, v) in d.items()]
+        # x=[]
+        # print(x)
+        # print(d.keys())
+        # print(len(x))
+        # print(len(d.keys()))
         # plot_class_dist(x=d.keys(),
         #                 y=d.values(),
         #                 colors=color,
@@ -275,7 +319,7 @@ def plot_fun(df_fun, figure_path):
         # removing top and right borders
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        ax.text(.9, .95, title, horizontalalignment='center', transform=ax.transAxes, fontsize=15)
+        ax.text(.9, .95, title, horizontalalignment='left', transform=ax.transAxes, fontsize=15)
         # labels
         plt.ylabel("#", fontsize=15)
 
@@ -313,7 +357,7 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
     fig = plt.figure(figsize=(15, 10))
     subplot = 1
     # abc = iter(['a','b','c','d'])
-    abc = iter(['a) original', 'b) simple oversampled', 'c) transform oversampled', 'd'])
+    abc = iter(['a) original', 'b) naive oversampled', 'c) transform oversampled', 'd'])
     l = []
     firstrun = True
     for subdir in sorted(subdirs):
@@ -433,8 +477,8 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
 
             plt.tight_layout()
             # fig_file = os.path.join(figure_path, 'performancePlot_SL_'+metric+'.png')
-            # fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
-            fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
+            # fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
 def plot_fun_classificationML(path, figure_path, metric='pcc'):
@@ -466,7 +510,7 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
     # all SL
     fig = plt.figure(figsize=(15, 10))
     subplot = 1
-    abc = iter(['a) original', 'b) simple oversampled', 'c) transform oversampled', 'd'])
+    abc = iter(['a) original', 'b) naive oversampled', 'c) transform oversampled', 'd'])
     l = []
     firstrun = True
     for subdir in sorted(subdirs):
@@ -733,7 +777,7 @@ def get_comparisonDF(path):
 # pathes to datasets that need to be analyzed and taxonomic classification file
 # path_fun = '/home/stillsen/Documents/Data/Image_classification_soil_fungi'
 path_fun = "/home/stillsen/Documents/Data/rec"
-tax_file_fun = 'im.merged.v10032020_unique_id_set__mv_imuted.csv'
+tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 
 # epochs = 20
 # storage_path = '/media/stillsen/Elements SE/Data/'
@@ -748,7 +792,7 @@ tax_file_fun = 'im.merged.v10032020_unique_id_set__mv_imuted.csv'
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_SL'
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_ML'
 # path='/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
-# path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_HC'
+path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_SL'
 # path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_ML'
 #missing value definition
@@ -762,7 +806,7 @@ df_fun = prepare_fun_df(df_fun)
 
 # ## figures
 plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results_imv/statistics')
-# plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
+# plot_fun_classificationSL(path=path,  figure_path=path, metric='acc')
 # get_comparisonDF(path=path)
-# plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
+# plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
 plt.show()
