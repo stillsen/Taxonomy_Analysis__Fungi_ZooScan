@@ -14,7 +14,7 @@ def plot_confusion_matrix(y_true,
                           y_pred,
                           target_names,
                           path,
-                          title='Confusion matrix - SL Class',
+                          title='Confusion matrix',
                           cmap=None,
                           normalize=True):
     """
@@ -54,7 +54,7 @@ def plot_confusion_matrix(y_true,
     import itertools
     from sklearn.metrics import matthews_corrcoef
 
-    cm = confusion_matrix(labels, preds)
+    cm = confusion_matrix(y_true, y_pred)
 
     mcc = matthews_corrcoef(y_true, y_pred)
     accuracy = np.trace(cm) / float(np.sum(cm))
@@ -92,26 +92,22 @@ def plot_confusion_matrix(y_true,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}\nMCC/PCC={:0.4f}'.format(accuracy, misclass, mcc))
-    plt.savefig(os.path.join(path,'confusionmatrix.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(path, title+'.png'), bbox_inches='tight')
     plt.show()
 
 
 
-transform = transforms.Compose([
-    # transforms.Resize(256),
-    # transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/p17'
+rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/p17/test'
+rec_prefix = 'phylum_test_oversampled_tt-split_SL'
+global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
+param_file = 'fun_per_lvl_tt-split_phylum_e17_f0.param'
 
-# path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/'
-# param_file = os.path.join(path,'fun_per_lvl_tt-split_class_e11_f0.param')
-# path = '/home/stillsen/Documents/Data/Results/ConfusionMatrix/SL-class-e11_naiveOversampled_tt-split/class/test'
-root_path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/'
-param_file = os.path.join(root_path,'fun_per_lvl_tt-split_class_e11_f0.param')
-path = '/home/stillsen/Documents/Data/Results/ExplainabilityPlot/SL-class-e11_naiveOversampled_tt-split/class/test'
+label_offset = [0, 6, 19, 50, 106, 194]
+
+
 ############# load net ###############
-classes = 11
+classes = 6
 gpus = mx.test_utils.list_gpus()
 ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
 pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
@@ -121,13 +117,13 @@ finetune_net.output.collect_params().setattr('lr_mult', 10)
 finetune_net.features = pretrained_net.features
 # finetune_net.collect_params().reset_ctx(ctx)
 finetune_net.hybridize()
-finetune_net.load_parameters(param_file)
+finetune_net.load_parameters(os.path.join(path,param_file))
 
 ############# load data ##############
 test_data = ImageRecordIter(
-    path_imgrec=os.path.join(path,'class_test_oversampled_tt-split_SL.rec'),
-    path_imgidx=os.path.join(path,'class_test_oversampled_tt-split_SL.idx'),
-    path_imglist=os.path.join(path,'class_test_oversampled_tt-split_SL.lst'),
+    path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
+    path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
+    path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
     aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
     data_shape=(3, 224, 224),
     batch_size=1,
@@ -136,27 +132,144 @@ test_data = ImageRecordIter(
     shuffle=False  # train true, test no
 )
 
-labels = []
+phylum_labels = []
 preds = []
-for batch in test_data:
 
-    # skimage.io.imshow(image.data[0][0].asnumpy().transpose().astype(int))
-    # plt.show()
-    label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)
+for i,batch in enumerate(test_data):
+    phylum_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
     image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
-    labels.append(label[0].asscalar())
-    # loop over folder with test data, for every image collect label and prediction
-    #
-    # np.random.seed(222)
-    # # print(Xi[np.newaxis,:,:,:])
-    # preds = finetune_net(transform(mx.nd.array(Xi[np.newaxis,:,:,:])))
-    pred = finetune_net(image[0])
-    # # top_pred_classes = preds[0].argsort()[-5:][::-1]
-    pred = pred.argmax(axis=1).asscalar()
-    preds.append(pred)
-    # print('observation prediction: %s' %top_pred_classes)
-    #
-df = pd.read_csv(os.path.join(path,'mapping.csv'), header=0,sep=',')
-target_names = df['taxon']
 
-plot_confusion_matrix(y_true=labels, y_pred=preds, target_names=target_names, path=root_path, normalize=False)
+    phylum_labels.append(phylum_label)
+    pred = finetune_net(image[0])
+    preds.append(pred[0].asnumpy().argmax()+label_offset[0])
+
+cm_path = os.path.join(path,'cms')
+if not os.path.exists(cm_path):
+    os.mkdir(cm_path)
+
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(phylum_labels)))]
+plot_confusion_matrix(
+    y_true=phylum_labels,
+    y_pred=preds,
+    # target_names=list(phylum_taxon),
+    target_names=target_names,
+    path=cm_path,
+    title='Confusion_Matrix-Phylum',
+    normalize=False)
+
+path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/c14'
+rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/c14/test'
+rec_prefix = 'class_test_oversampled_tt-split_SL'
+global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
+param_file = 'fun_per_lvl_tt-split_class_e14_f0.param'
+
+
+############# load net ###############
+classes = 13
+gpus = mx.test_utils.list_gpus()
+ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
+pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
+finetune_net = get_model('densenet169', classes=classes)
+finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+finetune_net.output.collect_params().setattr('lr_mult', 10)
+finetune_net.features = pretrained_net.features
+# finetune_net.collect_params().reset_ctx(ctx)
+finetune_net.hybridize()
+finetune_net.load_parameters(os.path.join(path,param_file))
+
+############# load data ##############
+test_data = ImageRecordIter(
+    path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
+    path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
+    path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
+    aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
+    data_shape=(3, 224, 224),
+    batch_size=1,
+    resize=224,
+    label_width=1,
+    shuffle=False  # train true, test no
+)
+
+class_labels = []
+preds = []
+
+for i,batch in enumerate(test_data):
+    class_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
+    image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
+
+    class_labels.append(class_label)
+    pred = finetune_net(image[0])
+    preds.append(pred[0].asnumpy().argmax()+label_offset[1])
+
+cm_path = os.path.join(path,'cms')
+if not os.path.exists(cm_path):
+    os.mkdir(cm_path)
+
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(class_labels)))]
+plot_confusion_matrix(
+    y_true=class_labels,
+    y_pred=preds,
+    # target_names=list(phylum_taxon),
+    target_names=target_names,
+    path=cm_path,
+    title='Confusion_Matrix-Class',
+    normalize=False)
+
+path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/o11'
+rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/o11/test'
+rec_prefix = 'order_test_oversampled_tt-split_SL'
+global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
+param_file = 'fun_per_lvl_tt-split_order_e11_f0.param'
+
+
+############# load net ###############
+classes = 31
+gpus = mx.test_utils.list_gpus()
+ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
+pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
+finetune_net = get_model('densenet169', classes=classes)
+finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+finetune_net.output.collect_params().setattr('lr_mult', 10)
+finetune_net.features = pretrained_net.features
+# finetune_net.collect_params().reset_ctx(ctx)
+finetune_net.hybridize()
+finetune_net.load_parameters(os.path.join(path,param_file))
+
+############# load data ##############
+test_data = ImageRecordIter(
+    path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
+    path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
+    path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
+    aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
+    data_shape=(3, 224, 224),
+    batch_size=1,
+    resize=224,
+    label_width=1,
+    shuffle=False  # train true, test no
+)
+
+order_labels = []
+preds = []
+
+for i,batch in enumerate(test_data):
+    order_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
+    image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
+
+    order_labels.append(order_label)
+    pred = finetune_net(image[0])
+    preds.append(pred[0].asnumpy().argmax()+label_offset[2])
+
+cm_path = os.path.join(path,'cms')
+if not os.path.exists(cm_path):
+    os.mkdir(cm_path)
+
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(order_labels)))]
+plot_confusion_matrix(
+    y_true=order_labels,
+    y_pred=preds,
+    # target_names=list(phylum_taxon),
+    target_names=target_names,
+    path=cm_path,
+    title='Confusion_Matrix-Order',
+    normalize=False)
+

@@ -273,7 +273,7 @@ def plot_fun(df_fun, figure_path):
         m = [i for i in zeta if i < (1 / k)]
         zeta = [i for i in d.values()]
 
-        title = str(rank) + '    \nC: ' + str(k) + '\nMC -: ' + str(len(m)) + '\nN/C: ' + str(avg_samples_per_rank[i])[:5] + '\nLRID: ' + str(lrid(zeta, k))[:5]
+        title = str(rank) + '    \nC: ' + str(k) + '\nMC +: ' + str(k-len(m)) + '\nMC -: ' + str(len(m)) + '\n1/C: ' + str(avg_samples_per_rank[i])[:5] + '\nLRID: ' + str(lrid(zeta, k))[:5]
         # title = ''
         #set color accordingly
         color = colors[i]
