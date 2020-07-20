@@ -6,6 +6,7 @@ from mxnet.ndarray import concat
 from gluoncv.model_zoo import get_model
 import pandas as pd
 
+
 from mxnet.ndarray.contrib import isnan
 
 class BigBangNet(gluon.HybridBlock):
@@ -88,6 +89,7 @@ class ModelHandler:
 
     def setup_net(self, multi_label_lvl, model_name, classes, ctx):
         finetune_net = None
+
         if multi_label_lvl == 1: #separate local level classifiers
             pretrained_net = get_model(model_name, pretrained=True, ctx=ctx)
             finetune_net = get_model(model_name, classes=classes)

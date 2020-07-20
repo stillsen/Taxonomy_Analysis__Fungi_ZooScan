@@ -217,7 +217,7 @@ class DataPrep:
                 if not os.path.exists(ml2_path):
                     makedirs(ml2_path)
                     for index, row in df.iterrows():
-                        file_name = row['objid'] + '.jpg'
+                        file_name = str(row['objid']) + '.jpg'
                         taxon_path_from = os.path.join(path, row['taxon'])
                         file_from = os.path.join(taxon_path_from, file_name)
 
@@ -227,10 +227,11 @@ class DataPrep:
                         # copy the file there
                         ranks = ast.literal_eval(row['ranks'])
                         # !!! I could also loop over lineage directly, BUT I wouldn't know the rank or also include taxons I do not know the rank of
-                        for i, tg in ranks:
-                            if tg != '' or tg != 'no rank':
+                        # starting in the back
+                        for i, tg in enumerate(ranks[::-1]):
+                            if tg != '' and tg != 'no rank':
                                 # ast.literal_eval pasrses the string representation of a list and translates it into a list
-                                taxon = ast.literal_eval(row['lineage'])[i+4]
+                                taxon = ast.literal_eval(row['lineage'])[-(i+1)]
 
                                 taxon_path_to = os.path.join(ml2_path, str(taxon))
                                 if not os.path.exists(taxon_path_to): makedirs(taxon_path_to)
