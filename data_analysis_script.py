@@ -645,8 +645,8 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
             subplot += 1
 
             plt.tight_layout()
-            # fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
-            fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'stabilityPlot_ML_' + metric + '.png')
+            # fig_file = os.path.join(figure_path, 'performancePlot_ML_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
 def get_comparisonDF(path):
@@ -681,10 +681,12 @@ def get_comparisonDF(path):
                 else: # PCC
                     # print('reading %s' % file)
                     df = pd.read_csv(os.path.join(subdir, file))
-                    score = df['scores_test'].max()
+                    # score = df['scores_test'].max()
+                    score = df['scores_test'][4:].mean()
+                    sem = df['scores_test'][4:].sem()
                     rank = file.split('_')[-2]
                     pcc_idxs[model, dataset, rank] = df['scores_test'].idxmax()
-                    df_pcc = df_pcc.append({'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': rank, 'Epoch': df['scores_test'].idxmax()},ignore_index=True)
+                    df_pcc = df_pcc.append({'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': rank, 'Epoch': df['scores_test'].idxmax()},ignore_index=True)
 
         elif 'ML' in subdir:
             model = 'ML'
@@ -731,41 +733,48 @@ def get_comparisonDF(path):
                     df = pd.read_csv(os.path.join(subdir, file))
                     ##############
                     # df_filter = df.iloc[:,[2,4,6,8,10,12]]
-                    df_filter = df.iloc[:, [3, 5, 7, 9, 11, 13]]
+                    df_filter = np.abs(df.iloc[:, [3, 5, 7, 9, 11, 13]])
                     row_sum = df_filter.sum(axis=1)
+                    # row_sum = df_filter.mean(axis=1)
                     best_idx = row_sum.idxmax()
                     pcc_idxs[model, dataset, 'all-in-one'] = best_idx
                     # print('best model at epoch: %s \nfor %s, %s' %(best_idx, model, dataset))
                     #############
-                    # score = df['Phylum_Test_PCC'].max()
-                    score = df.iloc[best_idx]['Phylum_Test_PCC']
+                    score = df.iloc[:]['Phylum_Test_PCC'][4:].mean()
+                    sem = df.iloc[:]['Phylum_Test_PCC'][4:].sem()
+                    # score = df.iloc[best_idx]['Phylum_Test_PCC']
                     df_pcc = df_pcc.append(
-                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'phylum', 'Epoch': best_idx},
+                        {'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'phylum', 'Epoch': best_idx},
                         ignore_index=True)
-                    # score = df['Class_Test_PCC'].max()
-                    score = df.iloc[best_idx]['Class_Test_PCC']
+                    score = df.iloc[:]['Class_Test_PCC'][4:].mean()
+                    sem = df.iloc[:]['Class_Test_PCC'][4:].sem()
+                    # score = df.iloc[best_idx]['Class_Test_PCC']
                     df_pcc = df_pcc.append(
-                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'class', 'Epoch': best_idx},
+                        {'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'class', 'Epoch': best_idx},
                         ignore_index=True)
-                    # score = df['Order_Test_PCC'].max()
-                    score = df.iloc[best_idx]['Order_Test_PCC']
+                    score = df.iloc[:]['Order_Test_PCC'][4:].mean()
+                    sem = df.iloc[:]['Order_Test_PCC'][4:].sem()
+                    # score = df.iloc[best_idx]['Order_Test_PCC']
                     df_pcc = df_pcc.append(
-                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'order', 'Epoch': best_idx},
+                        {'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem,'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'order', 'Epoch': best_idx},
                         ignore_index=True)
-                    # score = df['Family_Test_PCC'].max()
-                    score = df.iloc[best_idx]['Family_Test_PCC']
+                    score = df.iloc[:]['Family_Test_PCC'][4:].mean()
+                    sem = df.iloc[:]['Family_Test_PCC'][4:].sem()
+                    # score = df.iloc[best_idx]['Family_Test_PCC']
                     df_pcc = df_pcc.append(
-                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'family', 'Epoch': best_idx},
+                        {'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'family', 'Epoch': best_idx},
                         ignore_index=True)
-                    # score = df['Genus_Test_PCC'].max()
-                    score = df.iloc[best_idx]['Genus_Test_PCC']
+                    score = df.iloc[:]['Genus_Test_PCC'][4:].mean()
+                    sem = df.iloc[:]['Genus_Test_PCC'][4:].sem()
+                    # score = df.iloc[best_idx]['Genus_Test_PCC']
                     df_pcc = df_pcc.append(
-                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'genus', 'Epoch': best_idx},
+                        {'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'genus', 'Epoch': best_idx},
                         ignore_index=True)
-                    # score = df['Species_Test_PCC'].max()
-                    score = df.iloc[best_idx]['Species_Test_PCC']
+                    score = df.iloc[:]['Species_Test_PCC'][4:].mean()
+                    sem = df.iloc[:]['Species_Test_PCC'][4:].sem()
+                    # score = df.iloc[best_idx]['Species_Test_PCC']
                     df_pcc = df_pcc.append(
-                        {'MCC/PCC': score, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'species', 'Epoch': best_idx},
+                        {'MCC/PCC': score, 'SEMH': score+sem, 'SEML': score-sem, 'Metric': 'MCC/PCC', 'Dataset': dataset, 'Model': model, 'Rank': 'species', 'Epoch': best_idx},
                         ignore_index=True)
 
     df_acc.to_csv(os.path.join(path, 'comparisonPlotACC.csv'))
@@ -791,8 +800,8 @@ tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 #######
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_SL'
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_ML'
-# path='/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
-path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_HC'
+path='/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
+# path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_SL'
 # path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_ML'
 #missing value definition
@@ -805,8 +814,8 @@ df_fun = pd.read_csv(csv_path, na_values=missing_values_fun)
 df_fun = prepare_fun_df(df_fun)
 
 # ## figures
-plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results_imv/statistics')
-# plot_fun_classificationSL(path=path,  figure_path=path, metric='acc')
-# get_comparisonDF(path=path)
-# plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
+# plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results_imv/statistics')
+# plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
+get_comparisonDF(path=path)
+# plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
 plt.show()

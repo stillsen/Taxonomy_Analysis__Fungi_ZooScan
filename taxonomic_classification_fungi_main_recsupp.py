@@ -125,8 +125,8 @@ lighting_param = 0.1
 
 ###########################################################################################################
 
-
-
+#
+#
 # ###################################################################################
 # print("########### X Val ###############")
 # ###################################################################################
@@ -143,13 +143,13 @@ lighting_param = 0.1
 #     #                            num_workers=num_workers,
 #     #                            augment=augment)
 #     # classes = data_handler.classes
-#     if taxa == 'phylum' or taxa == 'class' or taxa == 'order' or taxa == 'family' or taxa == 'genus':
-#         print('skipping %s'%taxa)
-#         continue
-#     if taxa == 'species':
-#         s = 3
-#     else:
-#         s = 0
+#     # if taxa == 'phylum' or taxa == 'class' or taxa == 'order' or taxa == 'family' or taxa == 'genus':
+#     #     print('skipping %s'%taxa)
+#     #     continue
+#     # if taxa == 'species':
+#     #     s = 3
+#     # else:
+#     s = 0
 #     print('%i-fold crossvalidation for %s' % (k, taxa))
 #     for fold in range(s,k):
 #         if fold == 0:
@@ -189,50 +189,50 @@ lighting_param = 0.1
 #                                     taxa='_%s' % taxa,
 #                                     data_handler=data_rec_handler,
 #                                     fold=fold)
-
-
-
 #
+#
+
+
 # ###################################################################################
 # print("############ tt-split #############")
 # ###################################################################################
 # print("Per Level Classifier  ")
-# # for rank_idx, taxa in enumerate(taxonomic_groups):
-# #     print('t-split for %s' % (taxa))
-# taxa = 'genus'
-# rank_idx = 4
-# create_recs = True
-# data_rec_handler = DataRecHandler(root_path=path,
-#                                   rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
-#                                   rank_idx=rank_idx,
-#                                   batch_size=batch_size,
-#                                   num_workers=num_workers,
-#                                   k=k,
-#                                   create_recs=create_recs,
-#                                   oversample_technique=oversample_technique)
-# data_rec_handler.load_rec()
-# print('number of classes %i' %classes[rank_idx])
+# for rank_idx, taxa in enumerate(taxonomic_groups):
+#     print('t-split for %s' % (taxa))
+#     # taxa = 'genus'
+#     # rank_idx = 4
+#     create_recs = True
+#     data_rec_handler = DataRecHandler(root_path=path,
+#                                       rank_name=taxa,  # set to 'all-in-one', for multilabel_lvl=2
+#                                       rank_idx=rank_idx,
+#                                       batch_size=batch_size,
+#                                       num_workers=num_workers,
+#                                       k=k,
+#                                       create_recs=create_recs,
+#                                       oversample_technique=oversample_technique)
+#     data_rec_handler.load_rec()
+#     print('number of classes %i' %classes[rank_idx])
 #
-# print('\tmodule ModelHandler.py: ')
-# model = ModelHandler(classes=classes[rank_idx],
-#                      batch_size=batch_size,
-#                      num_workers=num_workers,
-#                      metrics=metric,
-#                      learning_rate=learning_rate,
-#                      momentum=momentum,
-#                      multi_label_lvl=multilabel_lvl,
-#                      model_name=net_name,
-#                      rank_idx=rank_idx,
-#                      wd=0.0001)
+#     print('\tmodule ModelHandler.py: ')
+#     model = ModelHandler(classes=classes[rank_idx],
+#                          batch_size=batch_size,
+#                          num_workers=num_workers,
+#                          metrics=metric,
+#                          learning_rate=learning_rate,
+#                          momentum=momentum,
+#                          multi_label_lvl=multilabel_lvl,
+#                          model_name=net_name,
+#                          rank_idx=rank_idx,
+#                          wd=0.0001)
 #
-# ### load parameters if already trained, otherwise train
-# model = load_or_train_model(model=model,
-#                             dataset=dataset,
-#                             mode='per_lvl_tt-split',
-#                             epochs=epochs,
-#                             ext_storage_path=ext_storage_path,
-#                             taxa='_%s' % taxa,
-#                             data_handler=data_rec_handler)
+#     ### load parameters if already trained, otherwise train
+#     model = load_or_train_model(model=model,
+#                                 dataset=dataset,
+#                                 mode='per_lvl_tt-split',
+#                                 epochs=epochs,
+#                                 ext_storage_path=ext_storage_path,
+#                                 taxa='_%s' % taxa,
+#                                 data_handler=data_rec_handler)
 
 print("########### Nested ###############")
 multilabel_lvl = 3 # relevant for model
@@ -343,3 +343,4 @@ for rank_idx, taxa_rank in enumerate(taxonomic_groups):
 #                             taxa='_%s' % taxa,
 #                             data_handler=data_rec_handler,
 #                             fold=fold)
+

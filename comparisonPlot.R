@@ -9,7 +9,7 @@ library('ggplot2')
 library('iRF')
 library(dplyr)
 
-path <- '/home/stillsen/Documents/Data/Results/ComparisionPlot'
+path <- '/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
 filename <- 'comparisonPlotMCC.csv'
 abs_filename <- paste(path, '/', filename, sep='')
 
@@ -27,9 +27,10 @@ df %>%
   arrange(Rank)%>%
 ggplot()+
   geom_point(aes_string(y="MCC.PCC", x="Rank", colour="Model", shape="Dataset", group="grp"), size = 3.5, position =position_dodge(width = .25))+
-  geom_line(aes_string(y="MCC.PCC", x="Rank", colour="Model", group="grp"), position =position_dodge(width = .25))
+  geom_line(aes_string(y="MCC.PCC", x="Rank", colour="Model", group="grp"), position =position_dodge(width = .25))+
+  geom_errorbar(aes_string(ymin="SEML", ymax="SEMH", x="Rank", colour="Model", group="grp"), position =position_dodge(width = .25))
 
-file_name <- paste(path,'/',"comparisonPlot_pcc.pdf", sep="")
+file_name <- paste(path,'/',"comparisonPlot_pcc_avg.pdf", sep="")
 ggsave(file_name)
 
 

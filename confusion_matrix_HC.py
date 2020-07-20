@@ -100,10 +100,10 @@ def plot_confusion_matrix(y_true,
 
 path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/HC_naiveOversampled_tt-split_HC_lr001_wd01'
 rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/HC_naiveOversampled_tt-split_HC_lr001_wd01/hierarchical'
-p_rec_prefix = 'fun_chained_per-lvl_phylum_e11_f0'
-c_rec_prefix = 'fun_chained_per-lvl_class_e14_f0'
-o_rec_prefix = 'fun_chained_per-lvl_order_e18_f0'
-f_rec_prefix = 'fun_chained_per-lvl_family_e10_f0'
+p_rec_prefix = 'fun_chained_per-lvl_phylum_e19_f0'
+c_rec_prefix = 'fun_chained_per-lvl_class_e19_f0'
+o_rec_prefix = 'fun_chained_per-lvl_order_e5_f0'
+f_rec_prefix = 'fun_chained_per-lvl_family_e17_f0'
 g_rec_prefix = 'fun_chained_per-lvl_genus_e5_f0'
 s_rec_prefix = 'fun_chained_per-lvl_species_e5_f0'
 global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
@@ -245,8 +245,12 @@ plot_confusion_matrix(
     title='Confusion_Matrix-Phylum',
     normalize=False)
 
-# target_names = [mapping_df.loc[mapping_df.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(class_labels)))]
-target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(set(class_labels))]
+labels = class_labels[:]
+if not all(p in labels for p in preds[1]):
+    # yet_to_add = [p not in class_labels for p in preds]
+    while not all(p in labels for p in preds[1]):
+        labels.append(preds[1][[p not in labels for p in preds[1]].index(True)])
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
 print(target_names)
 plot_confusion_matrix(
     y_true=class_labels,
@@ -257,7 +261,12 @@ plot_confusion_matrix(
     title='Confusion_Matrix-Class',
     normalize=False)
 
-target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(order_labels)))]
+labels = order_labels[:]
+if not all(p in labels for p in preds[2]):
+    # yet_to_add = [p not in class_labels for p in preds]
+    while not all(p in labels for p in preds[2]):
+        labels.append(preds[2][[p not in labels for p in preds[2]].index(True)])
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
 plot_confusion_matrix(
     y_true=order_labels,
     y_pred=preds[2],

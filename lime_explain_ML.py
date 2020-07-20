@@ -6,11 +6,11 @@ import skimage.io, skimage.segmentation
 import matplotlib.pyplot as plt
 from mxnet.gluon.data.vision import transforms
 import os
-from lime import lime_image
 import time
 from mxnet.io import ImageRecordIter
 import pandas as pd
 from ModelHandler import BigBangNet
+from lime import lime_image
 from lime.wrappers.scikit_image import SegmentationAlgorithm
 
 
@@ -62,7 +62,7 @@ param_file = 'fun_all-in-one_all-in-one_e4_f0.param'
 
 label_offset = [0, 6, 19, 50, 106, 194]
 # best_scores_id = [8, 25, 30, 50, 62, 66, 83, 94, 95, 96, 101, 106, 114, 121, 136, 146, 152, 157, 171]
-best_scores_id = [8, 25, 30, 50, 62, 66, 83, 94, 95, 96, 101, 106, 114, 121, 136, 146, 152, 157, 171]
+best_scores_id = [95, 96, 101, 106, 114, 121, 136, 146, 152, 157, 171]
 
 ############# load net ###############
 gpus = mx.test_utils.list_gpus()
@@ -112,6 +112,7 @@ max_dist=50
 ratio=.4
 neighborhood_size = 1000
 superpixel_count = 100
+
 
 taxonomic_groups = ['phylum', 'class', 'order', 'family', 'genus', 'species']
 taxonomic_groups_to_color = {'phylum': 0.857142857142857, 'class': 0.714285714285714, 'order': 0.571428571428571,
@@ -199,7 +200,7 @@ for i,batch in enumerate(test_data):
                      '_' + species_prediction_label + '.png'
                 print('\t color used'+str(c_permute[rank_idx]))
                 plt.imshow(skimage.segmentation.mark_boundaries(temp, mask[rank_idx], color=colors[rank_idx])/255)
-                plt.text(2, 10, 'explanation fit: ' + str(explanation.score)[:4], color='white', fontsize=15, weight='bold')
+                plt.text(2, 10, taxonomic_groups[rank_idx] + ' - explanation fit: ' + str(explanation.score)[:4], color='white', fontsize=15, weight='bold')
                 plt.savefig(os.path.join(outpath,fn))
                 plt.close()
             except KeyError:
