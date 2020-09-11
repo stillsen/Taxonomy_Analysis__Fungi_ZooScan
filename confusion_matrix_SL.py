@@ -70,7 +70,7 @@ def plot_confusion_matrix(y_true,
 
     if target_names is not None:
         tick_marks = np.arange(len(target_names))
-        plt.xticks(tick_marks, target_names, rotation=55)
+        plt.xticks(tick_marks, target_names, rotation=90)
         plt.yticks(tick_marks, target_names)
 
     if normalize:
@@ -106,57 +106,57 @@ param_file = 'fun_per_lvl_tt-split_phylum_e17_f0.param'
 label_offset = [0, 6, 19, 50, 106, 194]
 
 
-# ############# load net ###############
-# classes = 6
-# gpus = mx.test_utils.list_gpus()
-# ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
-# pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
-# finetune_net = get_model('densenet169', classes=classes)
-# finetune_net.output.initialize(init.Xavier(), ctx=ctx)
-# finetune_net.output.collect_params().setattr('lr_mult', 10)
-# finetune_net.features = pretrained_net.features
-# # finetune_net.collect_params().reset_ctx(ctx)
-# finetune_net.hybridize()
-# finetune_net.load_parameters(os.path.join(path,param_file))
-#
-# ############# load data ##############
-# test_data = ImageRecordIter(
-#     path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
-#     path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
-#     path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
-#     aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
-#     data_shape=(3, 224, 224),
-#     batch_size=1,
-#     resize=224,
-#     label_width=1,
-#     shuffle=False  # train true, test no
-# )
-#
-# phylum_labels = []
-# preds = []
-#
-# for i,batch in enumerate(test_data):
-#     phylum_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
-#     image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
-#
-#     phylum_labels.append(phylum_label)
-#     pred = finetune_net(image[0])
-#     preds.append(pred[0].asnumpy().argmax()+label_offset[0])
-#
-# cm_path = os.path.join(path,'cms')
-# if not os.path.exists(cm_path):
-#     os.mkdir(cm_path)
-#
-# target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(phylum_labels)))]
-# plot_confusion_matrix(
-#     y_true=phylum_labels,
-#     y_pred=preds,
-#     # target_names=list(phylum_taxon),
-#     target_names=target_names,
-#     path=cm_path,
-#     title='Confusion_Matrix-Phylum',
-#     normalize=False)
-#
+############# load net ###############
+classes = 6
+gpus = mx.test_utils.list_gpus()
+ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
+pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
+finetune_net = get_model('densenet169', classes=classes)
+finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+finetune_net.output.collect_params().setattr('lr_mult', 10)
+finetune_net.features = pretrained_net.features
+# finetune_net.collect_params().reset_ctx(ctx)
+finetune_net.hybridize()
+finetune_net.load_parameters(os.path.join(path,param_file))
+
+############# load data ##############
+test_data = ImageRecordIter(
+    path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
+    path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
+    path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
+    aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
+    data_shape=(3, 224, 224),
+    batch_size=1,
+    resize=224,
+    label_width=1,
+    shuffle=False  # train true, test no
+)
+
+phylum_labels = []
+preds = []
+
+for i,batch in enumerate(test_data):
+    phylum_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
+    image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
+
+    phylum_labels.append(phylum_label)
+    pred = finetune_net(image[0])
+    preds.append(pred[0].asnumpy().argmax()+label_offset[0])
+
+cm_path = os.path.join(path,'cms')
+if not os.path.exists(cm_path):
+    os.mkdir(cm_path)
+
+target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(phylum_labels)))]
+plot_confusion_matrix(
+    y_true=phylum_labels,
+    y_pred=preds,
+    # target_names=list(phylum_taxon),
+    target_names=target_names,
+    path=cm_path,
+    title='Confusion_Matrix-Phylum',
+    normalize=False)
+
 # path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/c14'
 # rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/c14/test'
 # rec_prefix = 'class_test_oversampled_tt-split_SL'
@@ -226,68 +226,68 @@ label_offset = [0, 6, 19, 50, 106, 194]
 #     path=cm_path,
 #     title='Confusion_Matrix-Class',
 #     normalize=False)
-
-path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/o11'
-rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/o11/test'
-rec_prefix = 'order_test_oversampled_tt-split_SL'
-global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
-param_file = 'fun_per_lvl_tt-split_order_e11_f0.param'
-
-
-############# load net ###############
-classes = 31
-gpus = mx.test_utils.list_gpus()
-ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
-pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
-finetune_net = get_model('densenet169', classes=classes)
-finetune_net.output.initialize(init.Xavier(), ctx=ctx)
-finetune_net.output.collect_params().setattr('lr_mult', 10)
-finetune_net.features = pretrained_net.features
-# finetune_net.collect_params().reset_ctx(ctx)
-finetune_net.hybridize()
-finetune_net.load_parameters(os.path.join(path,param_file))
-
-############# load data ##############
-test_data = ImageRecordIter(
-    path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
-    path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
-    path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
-    aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
-    data_shape=(3, 224, 224),
-    batch_size=1,
-    resize=224,
-    label_width=1,
-    shuffle=False  # train true, test no
-)
-
-order_labels = []
-preds = []
-
-for i,batch in enumerate(test_data):
-    order_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
-    image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
-
-    order_labels.append(order_label)
-    pred = finetune_net(image[0])
-    preds.append(pred[0].asnumpy().argmax()+label_offset[2])
-    # preds.append(pred[0].asnumpy())
-    print('l: %s, p: %s'%(len(order_labels), len(preds)))
-cm_path = os.path.join(path,'cms')
-if not os.path.exists(cm_path):
-    os.mkdir(cm_path)
-
-labels = order_labels[:]
-if not all(p in labels for p in preds):
-    # yet_to_add = [p not in class_labels for p in preds]
-    while not all(p in labels for p in preds):
-        labels.append(preds[[p not in labels for p in preds].index(True)])
-target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
-plot_confusion_matrix(
-    y_true=order_labels,
-    y_pred=preds,
-    # target_names=list(phylum_taxon),
-    target_names=target_names,
-    path=cm_path,
-    title='Confusion_Matrix-Order',
-    normalize=False)
+#
+# path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/o11'
+# rec_path = '/home/stillsen/Documents/Data/Results_imv/ExplainabilityPlot/SL_naiveOversampled_tt-split_SL_lr001_wd01/o11/test'
+# rec_prefix = 'order_test_oversampled_tt-split_SL'
+# global_mapping = pd.read_csv(os.path.join('/home/stillsen/Documents/Data/Results_imv/global_mapping.csv'))
+# param_file = 'fun_per_lvl_tt-split_order_e11_f0.param'
+#
+#
+# ############# load net ###############
+# classes = 31
+# gpus = mx.test_utils.list_gpus()
+# ctx = [mx.gpu(i) for i in gpus] if len(gpus) > 0 else [mx.cpu()]
+# pretrained_net = get_model('densenet169', pretrained=True, ctx=ctx)
+# finetune_net = get_model('densenet169', classes=classes)
+# finetune_net.output.initialize(init.Xavier(), ctx=ctx)
+# finetune_net.output.collect_params().setattr('lr_mult', 10)
+# finetune_net.features = pretrained_net.features
+# # finetune_net.collect_params().reset_ctx(ctx)
+# finetune_net.hybridize()
+# finetune_net.load_parameters(os.path.join(path,param_file))
+#
+# ############# load data ##############
+# test_data = ImageRecordIter(
+#     path_imgrec=os.path.join(rec_path, rec_prefix+'.rec'),
+#     path_imgidx=os.path.join(rec_path, rec_prefix+'.idx'),
+#     path_imglist=os.path.join(rec_path, rec_prefix+'.lst'),
+#     aug_list=mx.image.CreateAugmenter((3, 224, 224), inter_method=1),
+#     data_shape=(3, 224, 224),
+#     batch_size=1,
+#     resize=224,
+#     label_width=1,
+#     shuffle=False  # train true, test no
+# )
+#
+# order_labels = []
+# preds = []
+#
+# for i,batch in enumerate(test_data):
+#     order_label = gluon.utils.split_and_load(batch.label[0], ctx_list=ctx, batch_axis=0, even_split=False)[0].asscalar()
+#     image = gluon.utils.split_and_load(batch.data[0], ctx_list=ctx, batch_axis=0, even_split=False)
+#
+#     order_labels.append(order_label)
+#     pred = finetune_net(image[0])
+#     preds.append(pred[0].asnumpy().argmax()+label_offset[2])
+#     # preds.append(pred[0].asnumpy())
+#     print('l: %s, p: %s'%(len(order_labels), len(preds)))
+# cm_path = os.path.join(path,'cms')
+# if not os.path.exists(cm_path):
+#     os.mkdir(cm_path)
+#
+# labels = order_labels[:]
+# if not all(p in labels for p in preds):
+#     # yet_to_add = [p not in class_labels for p in preds]
+#     while not all(p in labels for p in preds):
+#         labels.append(preds[[p not in labels for p in preds].index(True)])
+# target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
+# plot_confusion_matrix(
+#     y_true=order_labels,
+#     y_pred=preds,
+#     # target_names=list(phylum_taxon),
+#     target_names=target_names,
+#     path=cm_path,
+#     title='Confusion_Matrix-Order',
+#     normalize=False)
 

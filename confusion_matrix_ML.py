@@ -72,7 +72,7 @@ def plot_confusion_matrix(y_true,
 
     if target_names is not None:
         tick_marks = np.arange(len(target_names))
-        plt.xticks(tick_marks, target_names, rotation=45)
+        plt.xticks(tick_marks, target_names, rotation=90)
         plt.yticks(tick_marks, target_names)
 
     if normalize:
@@ -218,47 +218,47 @@ plot_confusion_matrix(
     title='Confusion_Matrix-Order',
     normalize=False)
 
-labels = family_labels[:]
-if not all(p in labels for p in preds[3]):
-    # yet_to_add = [p not in class_labels for p in preds]
-    while not all(p in labels for p in preds[3]):
-        labels.append(preds[3][[p not in labels for p in preds[3]].index(True)])
-target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
-plot_confusion_matrix(
-    y_true=family_labels,
-    y_pred=preds[3],
-    # target_names=list(phylum_taxon),
-    target_names=target_names,
-    path=cm_path,
-    title='Confusion_Matrix-Family',
-    normalize=False)
-
-labels = genus_labels[:]
-if not all(p in labels for p in preds[4]):
-    # yet_to_add = [p not in class_labels for p in preds]
-    while not all(p in labels for p in preds[4]):
-        labels.append(preds[4][[p not in labels for p in preds[4]].index(True)])
-target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
-plot_confusion_matrix(
-    y_true=genus_labels,
-    y_pred=preds[4],
-    # target_names=list(phylum_taxon),
-    target_names=target_names,
-    path=cm_path,
-    title='Confusion_Matrix-Genus',
-    normalize=False)
-
-labels = species_labels[:]
-if not all(p in labels for p in preds[5]):
-    # yet_to_add = [p not in class_labels for p in preds]
-    while not all(p in labels for p in preds[5]):
-        labels.append(preds[5][[p not in labels for p in preds[5]].index(True)])
-target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
-plot_confusion_matrix(
-    y_true=species_labels,
-    y_pred=preds[5],
-    # target_names=list(phylum_taxon),
-    target_names=target_names,
-    path=cm_path,
-    title='Confusion_Matrix-Species',
-    normalize=False)
+# labels = family_labels[:]
+# if not all(p in labels for p in preds[3]):
+#     # yet_to_add = [p not in class_labels for p in preds]
+#     while not all(p in labels for p in preds[3]):
+#         labels.append(preds[3][[p not in labels for p in preds[3]].index(True)])
+# target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
+# plot_confusion_matrix(
+#     y_true=family_labels,
+#     y_pred=preds[3],
+#     # target_names=list(phylum_taxon),
+#     target_names=target_names,
+#     path=cm_path,
+#     title='Confusion_Matrix-Family',
+#     normalize=False)
+#
+# labels = genus_labels[:]
+# if not all(p in labels for p in preds[4]):
+#     # yet_to_add = [p not in class_labels for p in preds]
+#     while not all(p in labels for p in preds[4]):
+#         labels.append(preds[4][[p not in labels for p in preds[4]].index(True)])
+# target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
+# plot_confusion_matrix(
+#     y_true=genus_labels,
+#     y_pred=preds[4],
+#     # target_names=list(phylum_taxon),
+#     target_names=target_names,
+#     path=cm_path,
+#     title='Confusion_Matrix-Genus',
+#     normalize=False)
+#
+# labels = species_labels[:]
+# if not all(p in labels for p in preds[5]):
+#     # yet_to_add = [p not in class_labels for p in preds]
+#     while not all(p in labels for p in preds[5]):
+#         labels.append(preds[5][[p not in labels for p in preds[5]].index(True)])
+# target_names = [global_mapping.loc[global_mapping.iloc[:, 2] == l].iloc[:, 1].values[0] for l in list(sorted(set(labels)))]
+# plot_confusion_matrix(
+#     y_true=species_labels,
+#     y_pred=preds[5],
+#     # target_names=list(phylum_taxon),
+#     target_names=target_names,
+#     path=cm_path,
+#     title='Confusion_Matrix-Species',
+#     normalize=False)

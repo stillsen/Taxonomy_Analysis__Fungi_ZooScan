@@ -72,7 +72,7 @@ def plot_confusion_matrix(y_true,
 
     if target_names is not None:
         tick_marks = np.arange(len(target_names))
-        plt.xticks(tick_marks, target_names, rotation=45)
+        plt.xticks(tick_marks, target_names, rotation=90)
         plt.yticks(tick_marks, target_names)
 
     if normalize:

@@ -441,7 +441,7 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
                 plt.yticks([0, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
             else:
-                ax.set_ylabel('PCC/MCC', fontsize=15)
+                ax.set_ylabel('MCC', fontsize=15)
                 plt.ylim(-0.1, 1)
                 plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
@@ -477,8 +477,8 @@ def plot_fun_classificationSL(path,  figure_path, metric = 'pcc'):
 
             plt.tight_layout()
             # fig_file = os.path.join(figure_path, 'performancePlot_SL_'+metric+'.png')
-            fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
-            # fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
+            # fig_file = os.path.join(figure_path, 'performancePlot_HC_' + metric + '.png')
+            fig_file = os.path.join(figure_path, 'stabilityPlot_SL_' + metric + '.png')
             plt.savefig(fig_file, bbox_inches='tight')
 
 def plot_fun_classificationML(path, figure_path, metric='pcc'):
@@ -610,7 +610,7 @@ def plot_fun_classificationML(path, figure_path, metric='pcc'):
                 plt.yticks([0, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('Accuracy', x=0.18, y=0.97,fontsize= 20)
             else:
-                ax.set_ylabel('PCC/MCC', fontsize=15)
+                ax.set_ylabel('MCC', fontsize=15)
                 plt.ylim(-0.1, 1)
                 plt.yticks([-0.1, 0, 0.1, 0.25, 0.5, 1], fontsize=12)
                 # fig.suptitle('MCC/PCC', x=0.18, y=0.97,fontsize= 20)
@@ -800,10 +800,10 @@ tax_file_fun = 'im.merged.v10032020_unique_id_set.csv'
 #######
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_SL'
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_ML'
-path='/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
+# path='/home/stillsen/Documents/Data/Results_imv/ComparisionPlot'
 # path='/home/stillsen/Documents/Data/Results_imv/PerformancePlot_HC'
 # path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_SL'
-# path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_ML'
+path='/home/stillsen/Documents/Data/Results_imv/StabilityPlot_ML'
 #missing value definition
 missing_values_fun = ['', 'unknown', 'unclassified', 'unidentified']
 
@@ -816,6 +816,6 @@ df_fun = prepare_fun_df(df_fun)
 # ## figures
 # plot_fun(df_fun=df_fun,figure_path='/home/stillsen/Documents/Data/Results_imv/statistics')
 # plot_fun_classificationSL(path=path,  figure_path=path, metric='pcc')
-get_comparisonDF(path=path)
-# plot_fun_classificationML(path=path,  figure_path=path, metric='acc')
+# get_comparisonDF(path=path)
+plot_fun_classificationML(path=path,  figure_path=path, metric='pcc')
 plt.show()
